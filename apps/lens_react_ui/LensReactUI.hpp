@@ -16,7 +16,7 @@ public:
     bool close(void) override;
 
 private:
-    static constexpr uint8_t kAppCount = 6;
+    static constexpr uint8_t kAppCount = 8;
 
     static void onClockTimer(lv_timer_t *timer);
     static void onPromptTimer(lv_timer_t *timer);
@@ -25,6 +25,8 @@ private:
     static void onRootReleased(lv_event_t *event);
     static void onRootKey(lv_event_t *event);
     static void onTileClicked(lv_event_t *event);
+    static void onAssistantClicked(lv_event_t *event);
+    static void onOverlayDismissed(lv_event_t *event);
     static void onAnimX(void *obj, int32_t value);
 
     void createHome(lv_coord_t width, lv_coord_t height);
@@ -33,6 +35,8 @@ private:
     void rebuildPage(void);
     void showHome(void);
     void showApp(uint8_t index);
+    void showAssistantOverlay(void);
+    void hideAssistantOverlay(void);
     void selectIndex(uint8_t index, bool animate);
     void updateTileStyles(void);
     void updateClock(void);
@@ -45,6 +49,8 @@ private:
     void createMusicPage(void);
     void createPrompterPage(void);
     void createTranslatePage(void);
+    void createSettingsPage(void);
+    void createAssistantPage(void);
 
     lv_obj_t *_root = nullptr;
     lv_obj_t *_viewport = nullptr;
@@ -52,6 +58,7 @@ private:
     lv_obj_t *_track = nullptr;
     lv_obj_t *_status_bar = nullptr;
     lv_obj_t *_dot_row = nullptr;
+    lv_obj_t *_assistant_button = nullptr;
     lv_obj_t *_tiles[kAppCount] = {};
     lv_obj_t *_tile_icons[kAppCount] = {};
     lv_obj_t *_tile_names[kAppCount] = {};
@@ -61,6 +68,7 @@ private:
     lv_obj_t *_clock_label = nullptr;
     lv_obj_t *_battery_label = nullptr;
     lv_obj_t *_battery_fill = nullptr;
+    lv_obj_t *_assistant_overlay = nullptr;
     lv_obj_t *_prompt_lines[4] = {};
     lv_obj_t *_mic_ring = nullptr;
 

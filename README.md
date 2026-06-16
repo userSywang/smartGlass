@@ -4,6 +4,12 @@ Minimal ESP-Brookesia + LVGL SDL project for running only `LensReactUI`.
 
 This project keeps the Brookesia logging/check macros and app lifecycle path, but does not include the multi-app advanced demo set. The startup flow creates a Brookesia phone shell, installs `LensReactUI`, and starts it directly through the Brookesia app event path.
 
+## Features
+
+- Lens-style app carousel with Notes, Camera, Navigation, Music, Prompter, Translate, Settings, and AI Assistant entries.
+- Global AI assistant callout from the status bar `小智` button or the `A` key.
+- Chinese UI strings rendered with LVGL's SimSun CJK font for later embedded migration.
+
 ## Build
 
 Prerequisites:

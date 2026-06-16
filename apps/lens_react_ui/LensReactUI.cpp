@@ -23,6 +23,7 @@ constexpr lv_color_t kRed = LV_COLOR_MAKE(0xf8, 0x71, 0x71);
 constexpr lv_color_t kGreen = LV_COLOR_MAKE(0x34, 0xd3, 0x99);
 constexpr lv_color_t kCyan = LV_COLOR_MAKE(0x22, 0xd3, 0xee);
 constexpr lv_color_t kOrange = LV_COLOR_MAKE(0xea, 0x58, 0x0c);
+constexpr lv_color_t kPurple = LV_COLOR_MAKE(0xa7, 0x8b, 0xfa);
 constexpr uint8_t kBatteryPercent = 88;
 
 struct TileDef {
@@ -33,12 +34,14 @@ struct TileDef {
 };
 
 const TileDef kApps[] = {
-    {"notes", "Notes", LV_SYMBOL_FILE, kYellow},
-    {"camera", "Camera", LV_SYMBOL_IMAGE, kText},
-    {"nav", "Navigation", LV_SYMBOL_GPS, kBlue},
-    {"music", "Music", LV_SYMBOL_AUDIO, kRed},
-    {"prompter", "Prompter", LV_SYMBOL_LIST, kGreen},
-    {"translate", "Translate", LV_SYMBOL_WIFI, kCyan},
+    {"notes", "备忘", LV_SYMBOL_FILE, kYellow},
+    {"camera", "相机", LV_SYMBOL_IMAGE, kText},
+    {"nav", "导航", LV_SYMBOL_GPS, kBlue},
+    {"music", "音乐", LV_SYMBOL_AUDIO, kRed},
+    {"prompter", "提词", LV_SYMBOL_LIST, kGreen},
+    {"translate", "翻译", LV_SYMBOL_WIFI, kCyan},
+    {"settings", "设置", LV_SYMBOL_SETTINGS, kTextDim},
+    {"assistant", "小智", LV_SYMBOL_BELL, kPurple},
 };
 
 const lv_font_t *font_or_default(const lv_font_t *font)
@@ -59,6 +62,11 @@ lv_obj_t *label(lv_obj_t *parent, const char *text, const lv_font_t *font, lv_co
     lv_obj_set_style_text_font(obj, font_or_default(font), 0);
     lv_obj_set_style_text_color(obj, color, 0);
     return obj;
+}
+
+lv_obj_t *cjk_label(lv_obj_t *parent, const char *text, lv_color_t color)
+{
+    return label(parent, text, &lv_font_simsun_16_cjk, color);
 }
 
 lv_obj_t *box(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, lv_color_t bg, lv_opa_t opa, lv_coord_t radius)
@@ -185,6 +193,10 @@ bool LensReactUI::run(void)
 
 bool LensReactUI::back(void)
 {
+    if(_assistant_overlay) {
+        hideAssistantOverlay();
+        return true;
+    }
     if(_current_app >= 0) {
         showHome();
         return true;
@@ -215,11 +227,13 @@ bool LensReactUI::close(void)
     _track = nullptr;
     _status_bar = nullptr;
     _dot_row = nullptr;
+    _assistant_button = nullptr;
     _page = nullptr;
     _page_content = nullptr;
     _clock_label = nullptr;
     _battery_label = nullptr;
     _battery_fill = nullptr;
+    _assistant_overlay = nullptr;
     return true;
 }
 
@@ -257,7 +271,7 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
         _tile_icons[i] = label(icon_bg, kApps[i].symbol, &lv_font_montserrat_28, kApps[i].color);
         lv_obj_center(_tile_icons[i]);
 
-        _tile_names[i] = label(tile, kApps[i].name, &lv_font_montserrat_14, kText);
+        _tile_names[i] = cjk_label(tile, kApps[i].name, kText);
         lv_obj_set_width(_tile_names[i], 104);
         lv_label_set_long_mode(_tile_names[i], LV_LABEL_LONG_DOT);
         lv_obj_set_style_text_align(_tile_names[i], LV_TEXT_ALIGN_CENTER, 0);
@@ -278,7 +292,7 @@ void LensReactUI::createStatusBar(lv_coord_t width, lv_coord_t height)
 
     _dot_row = lv_obj_create(_status_bar);
     set_plain(_dot_row);
-    lv_obj_set_size(_dot_row, 86, 10);
+    lv_obj_set_size(_dot_row, 116, 10);
     lv_obj_align(_dot_row, LV_ALIGN_BOTTOM_MID, 0, -8);
     lv_obj_set_style_bg_opa(_dot_row, LV_OPA_TRANSP, 0);
 
@@ -307,6 +321,13 @@ void LensReactUI::createStatusBar(lv_coord_t width, lv_coord_t height)
     std::snprintf(battery_text, sizeof(battery_text), "%u%%", kBatteryPercent);
     _battery_label = label(_status_bar, battery_text, &lv_font_montserrat_16, kText);
     lv_obj_align(_battery_label, LV_ALIGN_BOTTOM_RIGHT, -16, -5);
+
+    _assistant_button = box(_status_bar, 42, 20, LV_COLOR_MAKE(0x24, 0x1b, 0x43), LV_OPA_COVER, 10);
+    lv_obj_align(_assistant_button, LV_ALIGN_BOTTOM_RIGHT, -108, -5);
+    lv_obj_add_flag(_assistant_button, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(_assistant_button, onAssistantClicked, LV_EVENT_CLICKED, this);
+    lv_obj_t *assistant_text = cjk_label(_assistant_button, "小智", kPurple);
+    lv_obj_center(assistant_text);
 
     LV_UNUSED(height);
 }
@@ -407,6 +428,7 @@ void LensReactUI::updateDots(void)
 
 void LensReactUI::showHome(void)
 {
+    hideAssistantOverlay();
     _current_app = -1;
     if(_home) {
         lv_obj_clear_flag(_home, LV_OBJ_FLAG_HIDDEN);
@@ -436,6 +458,7 @@ void LensReactUI::showApp(uint8_t index)
     if(index >= kAppCount) {
         return;
     }
+    hideAssistantOverlay();
     _current_app = static_cast<int8_t>(index);
     if(_home) {
         lv_obj_add_flag(_home, LV_OBJ_FLAG_HIDDEN);
@@ -477,6 +500,12 @@ void LensReactUI::rebuildPage(void)
         break;
     case 5:
         createTranslatePage();
+        break;
+    case 6:
+        createSettingsPage();
+        break;
+    case 7:
+        createAssistantPage();
         break;
     default:
         break;
@@ -776,6 +805,117 @@ void LensReactUI::createTranslatePage(void)
     }
 }
 
+void LensReactUI::createSettingsPage(void)
+{
+    if(_view_height <= 260) {
+        lv_obj_t *title = cjk_label(_page_content, "设置", kText);
+        lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 22);
+
+        const char *items[] = {"亮度 自动", "中文字体 已启用", "小智唤醒 全局可用"};
+        for(uint8_t i = 0; i < 3; ++i) {
+            lv_obj_t *row = box(_page_content, _view_width - 140, 30, LV_COLOR_MAKE(0x11, 0x11, 0x13), LV_OPA_COVER, 8);
+            lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 60 + i * 36);
+            lv_obj_t *text = cjk_label(row, items[i], i == 2 ? kPurple : kText);
+            lv_obj_align(text, LV_ALIGN_LEFT_MID, 12, 0);
+        }
+        return;
+    }
+
+    lv_obj_t *title = cjk_label(_page_content, "设置", kText);
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 50, 88);
+
+    struct Setting {
+        const char *name;
+        const char *value;
+        lv_color_t color;
+    };
+    const Setting settings[] = {
+        {"显示亮度", "自动 72%", kYellow},
+        {"交互方式", "触控 + 键盘 + 全局 AI", kBlue},
+        {"中文字体", "SimSun CJK 已启用", kGreen},
+        {"移植状态", "保留 UTF-8 文案", kCyan},
+    };
+
+    lv_obj_t *list = lv_obj_create(_page_content);
+    lv_obj_set_size(list, _width - 96, _height - 190);
+    lv_obj_align(list, LV_ALIGN_TOP_MID, 0, 148);
+    lv_obj_set_style_bg_opa(list, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(list, 0, 0);
+    lv_obj_set_style_pad_all(list, 0, 0);
+    lv_obj_set_style_pad_row(list, 12, 0);
+    lv_obj_set_scrollbar_mode(list, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+
+    for(const auto &setting : settings) {
+        lv_obj_t *row = box(list, _width - 110, 66, LV_COLOR_MAKE(0x11, 0x11, 0x13), LV_OPA_COVER, 14);
+        lv_obj_t *name = cjk_label(row, setting.name, kText);
+        lv_obj_align(name, LV_ALIGN_LEFT_MID, 22, -10);
+        lv_obj_t *value = cjk_label(row, setting.value, setting.color);
+        lv_obj_align(value, LV_ALIGN_LEFT_MID, 22, 14);
+    }
+}
+
+void LensReactUI::createAssistantPage(void)
+{
+    const lv_coord_t card_width = _view_height <= 260 ? (_view_width - 84) : (_width - 140);
+    const lv_coord_t card_height = _view_height <= 260 ? 118 : 270;
+    lv_obj_t *card = box(_page_content, card_width, card_height, LV_COLOR_MAKE(0x10, 0x0f, 0x18), LV_OPA_COVER, 18);
+    lv_obj_align(card, LV_ALIGN_CENTER, 0, _view_height <= 260 ? -2 : -28);
+    lv_obj_set_style_border_width(card, 1, 0);
+    lv_obj_set_style_border_color(card, kPurple, 0);
+    lv_obj_set_style_border_opa(card, LV_OPA_50, 0);
+
+    lv_obj_t *title = cjk_label(card, "小智 AI 助手", kPurple);
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 18, 16);
+
+    lv_obj_t *prompt = cjk_label(card, "你可以问：导航到会议室，翻译这句话，记录灵感。", kText);
+    lv_obj_set_width(prompt, card_width - 36);
+    lv_label_set_long_mode(prompt, LV_LABEL_LONG_WRAP);
+    lv_obj_align(prompt, LV_ALIGN_TOP_LEFT, 18, _view_height <= 260 ? 46 : 62);
+
+    lv_obj_t *answer = cjk_label(card, "示例回复：已准备好，我会在任何页面响应你的呼出。", kTextDim);
+    lv_obj_set_width(answer, card_width - 36);
+    lv_label_set_long_mode(answer, LV_LABEL_LONG_WRAP);
+    lv_obj_align(answer, LV_ALIGN_BOTTOM_LEFT, 18, -18);
+}
+
+void LensReactUI::showAssistantOverlay(void)
+{
+    if(_root == nullptr) {
+        return;
+    }
+    hideAssistantOverlay();
+
+    _assistant_overlay = box(_root, _view_width, _view_height, kBlack, LV_OPA_70, 0);
+    lv_obj_center(_assistant_overlay);
+    lv_obj_add_flag(_assistant_overlay, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(_assistant_overlay, onOverlayDismissed, LV_EVENT_CLICKED, this);
+
+    lv_obj_t *panel = box(_assistant_overlay, LV_MIN((lv_coord_t)520, (lv_coord_t)(_view_width - 54)),
+                          LV_MIN((lv_coord_t)150, (lv_coord_t)(_view_height - 32)),
+                          LV_COLOR_MAKE(0x10, 0x0f, 0x18), LV_OPA_COVER, 18);
+    lv_obj_center(panel);
+    lv_obj_set_style_border_width(panel, 1, 0);
+    lv_obj_set_style_border_color(panel, kPurple, 0);
+
+    lv_obj_t *title = cjk_label(panel, "小智正在聆听", kPurple);
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 20, 18);
+    lv_obj_t *body = cjk_label(panel, "全局呼出成功。试试说：打开设置、开始翻译、记录会议重点。", kText);
+    lv_obj_set_width(body, lv_obj_get_width(panel) - 40);
+    lv_label_set_long_mode(body, LV_LABEL_LONG_WRAP);
+    lv_obj_align(body, LV_ALIGN_TOP_LEFT, 20, 54);
+    lv_obj_t *hint = cjk_label(panel, "点击任意位置关闭", kTextFaint);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_RIGHT, -18, -14);
+}
+
+void LensReactUI::hideAssistantOverlay(void)
+{
+    if(_assistant_overlay) {
+        lv_obj_del(_assistant_overlay);
+        _assistant_overlay = nullptr;
+    }
+}
+
 void LensReactUI::updateClock(void)
 {
     if(_clock_label == nullptr) {
@@ -880,6 +1020,16 @@ void LensReactUI::onRootKey(lv_event_t *event)
         return;
     }
     const uint32_t key = lv_event_get_key(event);
+    if(key == 'a' || key == 'A') {
+        app->showAssistantOverlay();
+        return;
+    }
+    if(app->_assistant_overlay) {
+        if(key == LV_KEY_ESC || key == LV_KEY_BACKSPACE || key == LV_KEY_ENTER) {
+            app->hideAssistantOverlay();
+        }
+        return;
+    }
     if(app->_current_app < 0) {
         if((key == LV_KEY_RIGHT) && (app->_selected_index + 1 < kAppCount)) {
             app->selectIndex(app->_selected_index + 1, true);
@@ -890,6 +1040,22 @@ void LensReactUI::onRootKey(lv_event_t *event)
         }
     } else if(key == LV_KEY_ESC || key == LV_KEY_BACKSPACE) {
         app->showHome();
+    }
+}
+
+void LensReactUI::onAssistantClicked(lv_event_t *event)
+{
+    auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
+    if(app) {
+        app->showAssistantOverlay();
+    }
+}
+
+void LensReactUI::onOverlayDismissed(lv_event_t *event)
+{
+    auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
+    if(app) {
+        app->hideAssistantOverlay();
     }
 }
 
