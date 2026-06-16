@@ -106,6 +106,35 @@ void style_button(lv_obj_t *btn, lv_color_t color, lv_opa_t opa)
     lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
 }
 
+void style_soft_row(lv_obj_t *row, lv_color_t accent)
+{
+    lv_obj_set_style_bg_color(row, LV_COLOR_MAKE(0x13, 0x14, 0x17), 0);
+    lv_obj_set_style_bg_opa(row, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(row, 1, 0);
+    lv_obj_set_style_border_color(row, LV_COLOR_MAKE(0x2a, 0x2b, 0x31), 0);
+    lv_obj_set_style_border_opa(row, LV_OPA_40, 0);
+    lv_obj_set_style_shadow_width(row, 8, 0);
+    lv_obj_set_style_shadow_color(row, kBlack, 0);
+    lv_obj_set_style_shadow_opa(row, LV_OPA_30, 0);
+
+    const lv_coord_t row_height = lv_obj_get_height(row);
+    const lv_coord_t bar_height = row_height > 42 ? row_height - 30 : 18;
+    lv_obj_t *bar = box(row, 4, bar_height, accent, LV_OPA_COVER, 2);
+    lv_obj_align(bar, LV_ALIGN_LEFT_MID, 12, 0);
+}
+
+void style_soft_action(lv_obj_t *obj, lv_color_t accent)
+{
+    lv_obj_set_style_bg_color(obj, LV_COLOR_MAKE(0x1b, 0x19, 0x12), 0);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(obj, 1, 0);
+    lv_obj_set_style_border_color(obj, accent, 0);
+    lv_obj_set_style_border_opa(obj, LV_OPA_40, 0);
+    lv_obj_set_style_shadow_width(obj, 10, 0);
+    lv_obj_set_style_shadow_color(obj, kBlack, 0);
+    lv_obj_set_style_shadow_opa(obj, LV_OPA_30, 0);
+}
+
 bool fill_local_time(std::tm *time_info)
 {
     if(time_info == nullptr) {
@@ -574,25 +603,27 @@ void LensReactUI::createCameraPage(void)
 void LensReactUI::createNotesPage(void)
 {
     if(_view_height <= 260) {
-        lv_obj_t *title = label(_page_content, "Notes Test", &lv_font_montserrat_24, kText);
+        lv_obj_t *title = cjk_label(_page_content, "备忘", kText);
         lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 22);
         const char *items[] = {"Team sync at 3 PM", "Buy coffee beans", "UI interaction notes"};
+        const lv_color_t accents[] = {kYellow, kBlue, kPurple};
         for(uint8_t i = 0; i < 3; ++i) {
-            lv_obj_t *row = box(_page_content, _view_width - 120, 30, LV_COLOR_MAKE(0x11, 0x11, 0x13), LV_OPA_COVER, 8);
+            lv_obj_t *row = box(_page_content, _view_width - 120, 30, LV_COLOR_MAKE(0x13, 0x14, 0x17), LV_OPA_COVER, 10);
             lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 62 + i * 36);
+            style_soft_row(row, accents[i]);
             lv_obj_t *text = label(row, items[i], &lv_font_montserrat_14, kText);
-            lv_obj_align(text, LV_ALIGN_LEFT_MID, 12, 0);
+            lv_obj_align(text, LV_ALIGN_LEFT_MID, 26, 0);
         }
         return;
     }
 
-    lv_obj_t *title = label(_page_content, "Notes Test", &lv_font_montserrat_34, kText);
+    lv_obj_t *title = cjk_label(_page_content, "备忘", kText);
     lv_obj_align(title, LV_ALIGN_TOP_LEFT, 50, 96);
 
-    lv_obj_t *plus = lv_btn_create(_page_content);
-    lv_obj_set_size(plus, 52, 52);
+    lv_obj_t *plus = box(_page_content, 48, 48, LV_COLOR_MAKE(0x1b, 0x19, 0x12), LV_OPA_COVER, 14);
     lv_obj_align(plus, LV_ALIGN_TOP_RIGHT, -58, 92);
-    style_button(plus, LV_COLOR_MAKE(0x42, 0x32, 0x08), LV_OPA_COVER);
+    lv_obj_add_flag(plus, LV_OBJ_FLAG_CLICKABLE);
+    style_soft_action(plus, kYellow);
     lv_obj_t *plus_icon = label(plus, LV_SYMBOL_PLUS, &lv_font_montserrat_24, kYellow);
     lv_obj_center(plus_icon);
 
@@ -617,12 +648,18 @@ void LensReactUI::createNotesPage(void)
     lv_obj_set_scrollbar_mode(list, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
 
+    const lv_color_t note_accents[] = {kYellow, kBlue, kPurple};
+    uint8_t note_index = 0;
     for(const auto &note : notes) {
-        lv_obj_t *row = box(list, _width - 110, 76, LV_COLOR_MAKE(0x11, 0x11, 0x13), LV_OPA_COVER, 16);
+        lv_obj_t *row = box(list, _width - 110, 76, LV_COLOR_MAKE(0x13, 0x14, 0x17), LV_OPA_COVER, 16);
+        style_soft_row(row, note_accents[note_index % 3]);
         lv_obj_t *note_title = label(row, note.title, &lv_font_montserrat_16, kText);
-        lv_obj_align(note_title, LV_ALIGN_LEFT_MID, 22, 0);
-        lv_obj_t *time = label(row, note.time, &lv_font_montserrat_14, kTextFaint);
-        lv_obj_align(time, LV_ALIGN_RIGHT_MID, -22, 0);
+        lv_obj_align(note_title, LV_ALIGN_LEFT_MID, 34, 0);
+        lv_obj_t *time_pill = box(row, 86, 28, LV_COLOR_MAKE(0x1d, 0x1e, 0x22), LV_OPA_COVER, 14);
+        lv_obj_align(time_pill, LV_ALIGN_RIGHT_MID, -18, 0);
+        lv_obj_t *time = label(time_pill, note.time, &lv_font_montserrat_14, kTextFaint);
+        lv_obj_center(time);
+        ++note_index;
     }
 }
 
@@ -814,11 +851,13 @@ void LensReactUI::createSettingsPage(void)
         lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 22);
 
         const char *items[] = {"亮度 自动", "中文字体 已启用", "小智唤醒 全局可用"};
+        const lv_color_t accents[] = {kYellow, kGreen, kPurple};
         for(uint8_t i = 0; i < 3; ++i) {
-            lv_obj_t *row = box(_page_content, _view_width - 140, 30, LV_COLOR_MAKE(0x11, 0x11, 0x13), LV_OPA_COVER, 8);
+            lv_obj_t *row = box(_page_content, _view_width - 140, 30, LV_COLOR_MAKE(0x13, 0x14, 0x17), LV_OPA_COVER, 10);
             lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 60 + i * 36);
+            style_soft_row(row, accents[i]);
             lv_obj_t *text = cjk_label(row, items[i], i == 2 ? kPurple : kText);
-            lv_obj_align(text, LV_ALIGN_LEFT_MID, 12, 0);
+            lv_obj_align(text, LV_ALIGN_LEFT_MID, 26, 0);
         }
         return;
     }
@@ -849,11 +888,12 @@ void LensReactUI::createSettingsPage(void)
     lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
 
     for(const auto &setting : settings) {
-        lv_obj_t *row = box(list, _width - 110, 66, LV_COLOR_MAKE(0x11, 0x11, 0x13), LV_OPA_COVER, 14);
+        lv_obj_t *row = box(list, _width - 110, 66, LV_COLOR_MAKE(0x13, 0x14, 0x17), LV_OPA_COVER, 14);
+        style_soft_row(row, setting.color);
         lv_obj_t *name = cjk_label(row, setting.name, kText);
-        lv_obj_align(name, LV_ALIGN_LEFT_MID, 22, -10);
+        lv_obj_align(name, LV_ALIGN_LEFT_MID, 34, -10);
         lv_obj_t *value = cjk_label(row, setting.value, setting.color);
-        lv_obj_align(value, LV_ALIGN_LEFT_MID, 22, 14);
+        lv_obj_align(value, LV_ALIGN_LEFT_MID, 34, 14);
     }
 }
 
