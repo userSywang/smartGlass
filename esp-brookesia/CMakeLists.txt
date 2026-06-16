@@ -1,0 +1,64 @@
+cmake_minimum_required(VERSION 3.12.4)
+project(esp-brookesia)
+
+set(PROJ_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(SRCS_C "")
+set(SRCS_CPP "")
+
+set(APP_EXAMPLES_PHONE_SRC_DIR ${PROJ_SRC_DIR}/app_examples/phone)
+file(GLOB_RECURSE APP_EXAMPLES_PHONE_SRCS_C ${APP_EXAMPLES_PHONE_SRC_DIR}/*.c)
+file(GLOB_RECURSE APP_EXAMPLES_PHONE_SRCS_CPP ${APP_EXAMPLES_PHONE_SRC_DIR}/*.cpp)
+list(APPEND SRCS_C ${APP_EXAMPLES_PHONE_SRCS_C})
+list(APPEND SRCS_CPP ${APP_EXAMPLES_PHONE_SRCS_CPP})
+
+set(ASSETS_SRC_DIR ${PROJ_SRC_DIR}/assets)
+file(GLOB_RECURSE ASSETS_SRC_C ${ASSETS_SRC_DIR}/*.c)
+list(APPEND SRCS_C ${ASSETS_SRC_C})
+
+set(CORE_SRC_DIR ${PROJ_SRC_DIR}/core)
+file(GLOB_RECURSE CORE_SRCS_C ${CORE_SRC_DIR}/*.c)
+file(GLOB_RECURSE CORE_SRCS_CPP ${CORE_SRC_DIR}/*.cpp)
+list(APPEND SRCS_C ${CORE_SRCS_C})
+list(APPEND SRCS_CPP ${CORE_SRCS_CPP})
+
+set(PHONE_SRC_DIR ${PROJ_SRC_DIR}/systems/phone)
+file(GLOB_RECURSE PHONE_SRCS_C ${PHONE_SRC_DIR}/*.c)
+file(GLOB_RECURSE PHONE_SRCS_CPP ${PHONE_SRC_DIR}/*.cpp)
+list(APPEND SRCS_C ${PHONE_SRCS_C})
+list(APPEND SRCS_CPP ${PHONE_SRCS_CPP})
+
+set(WIDGETS_SRC_DIR ${PROJ_SRC_DIR}/widgets)
+file(GLOB_RECURSE WIDGETS_SRCS_C ${WIDGETS_SRC_DIR}/*.c)
+file(GLOB_RECURSE WIDGETS_SRCS_CPP ${WIDGETS_SRC_DIR}/*.cpp)
+list(APPEND SRCS_C ${WIDGETS_SRCS_C})
+list(APPEND SRCS_CPP ${WIDGETS_SRCS_CPP})
+
+set(SQUARELINE_SRC_DIR ${PROJ_SRC_DIR}/squareline)
+file(GLOB_RECURSE SQUARELINE_SRCS_C ${SQUARELINE_SRC_DIR}/*.c)
+list(APPEND SRCS_C ${SQUARELINE_SRCS_C})
+
+add_library(${PROJECT_NAME} STATIC ${SRCS_C} ${SRCS_CPP})
+
+# 链接 LVGL 库
+target_link_libraries(${PROJECT_NAME} PRIVATE lvgl)
+
+# 链接 lv_drivers 库
+target_link_libraries(${PROJECT_NAME} PRIVATE lv_drivers)
+
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJ_SRC_DIR})
+
+set_source_files_properties(
+    ${SRCS_CPP}
+    PROPERTIES
+        COMPILE_FLAGS "-Wno-missing-field-initializers"
+)
+
+set_source_files_properties(
+    ${APP_EXAMPLES_PHONE_SRCS_C}
+    PROPERTIES
+        COMPILE_FLAGS "-Wno-unused-variable"
+)
+
+target_compile_definitions(${PROJECT_NAME}  PRIVATE -DLV_LVGL_H_INCLUDE_SIMPLE)
+
+#target_compile_definitions(${PROJECT_NAME}  PRIVATE -DESP_BROOKESIA_KCONFIG_IGNORE)

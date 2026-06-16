@@ -1,0 +1,26 @@
+build/
+out/
+
+# CMake generated files that may be created outside build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+
+# Local binaries and debug artifacts
+*.exe
+*.dll
+*.pdb
+*.obj
+*.o
+*.a
+*.lib
+
+# Editor and OS noise
+.vscode/
+.idea/
+.vs/
+*.user
+*.suo
+Thumbs.db
+desktop.ini
