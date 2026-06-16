@@ -11,13 +11,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_OBJECT_PATH_MAX 512)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_C_FLAGS "-O0 -g -Wall -Wextra -Wshadow -Wundef -Wno-unused-function")
-set(CMAKE_CXX_FLAGS "-O0 -g -Wall -Wextra -Wshadow -Wundef -Wno-unused-function -Wno-unused-parameter -Wno-missing-field-initializers")
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif()
 
-set(SMARTGLASS_DEFAULT_SDL2_DIR "F:/360MoveData/Users/Administrator/Desktop/winenv-main/libs/SDL2-2.32.4/cmake")
-if((NOT SDL2_DIR OR SDL2_DIR MATCHES "NOTFOUND") AND
-        (EXISTS "${SMARTGLASS_DEFAULT_SDL2_DIR}/SDL2Config.cmake" OR EXISTS "${SMARTGLASS_DEFAULT_SDL2_DIR}/sdl2-config.cmake"))
-    set(SDL2_DIR "${SMARTGLASS_DEFAULT_SDL2_DIR}" CACHE PATH "Path to SDL2Config.cmake" FORCE)
+if((NOT SDL2_DIR OR SDL2_DIR MATCHES "NOTFOUND") AND DEFINED ENV{SMARTGLASS_SDL2_DIR})
+    set(SDL2_DIR "$ENV{SMARTGLASS_SDL2_DIR}" CACHE PATH "Path to SDL2Config.cmake" FORCE)
 endif()
 
 find_package(SDL2 REQUIRED)
@@ -33,18 +32,44 @@ add_executable(${PROJECT_NAME}
     mouse_cursor_icon.c
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    pthread
-    lvgl
-    lv_drivers
-    esp-brookesia
-    lens_react_ui
-    ${SDL2_STATIC_LIBRARIES}
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        pthread
+        lens_react_ui
+        esp-brookesia
+        lv_drivers
+        -Wl,--whole-archive
+        lvgl
+        -Wl,--no-whole-archive
+        ${SDL2_STATIC_LIBRARIES}
+    )
+else()
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        pthread
+        lens_react_ui
+        esp-brookesia
+        lv_drivers
+        lvgl
+        ${SDL2_STATIC_LIBRARIES}
+    )
+endif()
+
+target_compile_options(${PROJECT_NAME} PRIVATE
+    -Wall
+    -Wextra
+    -Wshadow
+    -Wundef
+    -Wno-unused-function
+    $<$<COMPILE_LANGUAGE:CXX>:
+        -Wno-unused-parameter
+        -Wno-missing-field-initializers
+    >
+    -DLV_LVGL_H_INCLUDE_SIMPLE
 )
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc")
-
-target_compile_options(${PROJECT_NAME} PRIVATE -DLV_LVGL_H_INCLUDE_SIMPLE)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_options(${PROJECT_NAME} PRIVATE -static-libstdc++ -static-libgcc)
+endif()
 
 set_target_properties(
     ${PROJECT_NAME}
