@@ -4,8 +4,13 @@ project(lens_react_ui)
 
 file(GLOB_RECURSE APPS_C_SRCS ./*.c)
 file(GLOB_RECURSE APPS_CPP_SRCS ./*.cpp)
+list(REMOVE_ITEM APPS_C_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/smartglass_font_16_cjk.c")
 
-add_library(${PROJECT_NAME} STATIC ${APPS_C_SRCS} ${APPS_CPP_SRCS})
+add_library(${PROJECT_NAME} STATIC
+    ${APPS_C_SRCS}
+    ${APPS_CPP_SRCS}
+    smartglass_font_16_cjk.c
+)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

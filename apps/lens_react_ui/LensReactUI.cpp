@@ -9,6 +9,8 @@
 #define LENS_TIMER_USER_DATA(t) ((t)->user_data)
 #endif
 
+LV_FONT_DECLARE(smartglass_font_16_cjk);
+
 namespace {
 constexpr lv_color_t kBlack = LV_COLOR_MAKE(0x00, 0x00, 0x00);
 constexpr lv_color_t kWhite = LV_COLOR_MAKE(0xff, 0xff, 0xff);
@@ -66,7 +68,7 @@ lv_obj_t *label(lv_obj_t *parent, const char *text, const lv_font_t *font, lv_co
 
 lv_obj_t *cjk_label(lv_obj_t *parent, const char *text, lv_color_t color)
 {
-    return label(parent, text, &lv_font_simsun_16_cjk, color);
+    return label(parent, text, &smartglass_font_16_cjk, color);
 }
 
 lv_obj_t *box(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, lv_color_t bg, lv_opa_t opa, lv_coord_t radius)

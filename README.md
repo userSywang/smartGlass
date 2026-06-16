@@ -8,7 +8,7 @@ This project keeps the Brookesia logging/check macros and app lifecycle path, bu
 
 - Lens-style app carousel with Notes, Camera, Navigation, Music, Prompter, Translate, Settings, and AI Assistant entries.
 - Global AI assistant callout from the status bar `小智` button or the `A` key.
-- Chinese UI strings rendered with LVGL's SimSun CJK font for later embedded migration.
+- Chinese UI strings rendered with the project-local `smartglass_font_16_cjk` LVGL font for later embedded migration.
 
 ## Build
 
@@ -35,4 +35,4 @@ build\bin\smartGlass.exe
 
 - `build/` and `out/` are generated locally and are intentionally ignored by Git.
 - `lvgl/`, `lv_drivers/`, and `esp-brookesia/` are kept in the repository because the root CMake project builds against these local source directories.
-- Chinese UI text uses LVGL's built-in `lv_font_simsun_16_cjk` font. Keep `LV_FONT_SIMSUN_16_CJK` enabled in `lv_conf.h` when porting to embedded targets that need the same Chinese strings.
+- Chinese UI text uses `apps/lens_react_ui/smartglass_font_16_cjk.c`, a compact LVGL font generated from SimSun for the current UI strings. Keep this file in the target build when porting to embedded hardware.
