@@ -130,6 +130,18 @@ void style_soft_action(lv_obj_t *obj, lv_color_t accent)
     lv_obj_set_style_shadow_opa(obj, LV_OPA_30, 0);
 }
 
+void style_hud_pill(lv_obj_t *obj)
+{
+    lv_obj_set_style_bg_color(obj, LV_COLOR_MAKE(0x12, 0x18, 0x20), 0);
+    lv_obj_set_style_bg_opa(obj, LV_OPA_80, 0);
+    lv_obj_set_style_border_width(obj, 1, 0);
+    lv_obj_set_style_border_color(obj, LV_COLOR_MAKE(0x2f, 0x5f, 0x88), 0);
+    lv_obj_set_style_border_opa(obj, LV_OPA_50, 0);
+    lv_obj_set_style_shadow_width(obj, 8, 0);
+    lv_obj_set_style_shadow_color(obj, kBlack, 0);
+    lv_obj_set_style_shadow_opa(obj, LV_OPA_30, 0);
+}
+
 bool fill_local_time(std::tm *time_info)
 {
     if(time_info == nullptr) {
@@ -657,91 +669,104 @@ void LensReactUI::createNotesPage(void)
 void LensReactUI::createNavigationPage(void)
 {
     if(_view_height <= 260) {
-        lv_obj_t *mode = box(_page_content, 72, 26, LV_COLOR_MAKE(0x0d, 0x2a, 0x52), LV_OPA_COVER, 13);
-        lv_obj_align(mode, LV_ALIGN_TOP_LEFT, 34, 22);
+        lv_obj_t *route_a = box(_page_content, 180, 3, kBlue, LV_OPA_20, 2);
+        lv_obj_align(route_a, LV_ALIGN_CENTER, -124, 54);
+        lv_obj_t *route_b = box(_page_content, 3, 66, kBlue, LV_OPA_40, 2);
+        lv_obj_align(route_b, LV_ALIGN_CENTER, -34, 22);
+        lv_obj_t *route_c = box(_page_content, 220, 3, kBlue, LV_OPA_20, 2);
+        lv_obj_align(route_c, LV_ALIGN_CENTER, 76, -10);
+
+        lv_obj_t *mode = box(_page_content, 78, 28, LV_COLOR_MAKE(0x0c, 0x20, 0x34), LV_OPA_90, 14);
+        lv_obj_align(mode, LV_ALIGN_TOP_LEFT, 32, 20);
+        style_hud_pill(mode);
         lv_obj_t *mode_text = cjk_label(mode, "导航中", kBlue);
         lv_obj_center(mode_text);
 
-        lv_obj_t *summary = label(_page_content, "8.6 km  18 min", &lv_font_montserrat_16, kTextDim);
-        lv_obj_align(summary, LV_ALIGN_TOP_RIGHT, -34, 26);
+        lv_obj_t *summary = box(_page_content, 128, 28, LV_COLOR_MAKE(0x12, 0x18, 0x20), LV_OPA_80, 14);
+        lv_obj_align(summary, LV_ALIGN_TOP_RIGHT, -32, 20);
+        style_hud_pill(summary);
+        lv_obj_t *summary_text = label(summary, "8.6 km  18 min", &lv_font_montserrat_14, kTextDim);
+        lv_obj_center(summary_text);
 
-        lv_obj_t *orb = box(_page_content, 82, 82, LV_COLOR_MAKE(0x0d, 0x2a, 0x52), LV_OPA_COVER, LV_RADIUS_CIRCLE);
-        lv_obj_align(orb, LV_ALIGN_CENTER, -150, 8);
+        lv_obj_t *orb = box(_page_content, 94, 94, LV_COLOR_MAKE(0x06, 0x1d, 0x33), LV_OPA_COVER, LV_RADIUS_CIRCLE);
+        lv_obj_align(orb, LV_ALIGN_CENTER, -146, 10);
         lv_obj_set_style_border_width(orb, 1, 0);
         lv_obj_set_style_border_color(orb, kBlue, 0);
-        lv_obj_set_style_border_opa(orb, LV_OPA_50, 0);
-        lv_obj_t *turn = label(orb, LV_SYMBOL_LEFT, &lv_font_montserrat_34, kBlue);
+        lv_obj_set_style_border_opa(orb, LV_OPA_70, 0);
+        lv_obj_set_style_shadow_width(orb, 18, 0);
+        lv_obj_set_style_shadow_color(orb, LV_COLOR_MAKE(0x05, 0x16, 0x2a), 0);
+        lv_obj_set_style_shadow_opa(orb, LV_OPA_60, 0);
+        lv_obj_t *turn = label(orb, LV_SYMBOL_LEFT, &lv_font_montserrat_38, kBlue);
         lv_obj_center(turn);
 
-        lv_obj_t *distance = label(_page_content, "150 m", &lv_font_montserrat_34, kText);
-        lv_obj_align(distance, LV_ALIGN_CENTER, -26, -22);
+        lv_obj_t *distance = label(_page_content, "150 m", &lv_font_montserrat_38, kText);
+        lv_obj_align(distance, LV_ALIGN_CENTER, 18, -28);
         lv_obj_t *action = cjk_label(_page_content, "前方左转", kBlue);
-        lv_obj_align(action, LV_ALIGN_CENTER, -16, 14);
+        lv_obj_align(action, LV_ALIGN_CENTER, 24, 12);
         lv_obj_t *road = cjk_label(_page_content, "进入星光大道", kTextDim);
-        lv_obj_align(road, LV_ALIGN_CENTER, 96, 44);
+        lv_obj_align(road, LV_ALIGN_CENTER, 94, 44);
 
-        lv_obj_t *lane = box(_page_content, 118, 28, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 14);
-        lv_obj_align(lane, LV_ALIGN_BOTTOM_RIGHT, -34, -20);
-        lv_obj_set_style_border_width(lane, 1, 0);
-        lv_obj_set_style_border_color(lane, LV_COLOR_MAKE(0x45, 0x46, 0x4d), 0);
-        lv_obj_set_style_border_opa(lane, LV_OPA_50, 0);
-        lv_obj_t *lane_text = cjk_label(lane, "靠左车道", kText);
+        lv_obj_t *lane = box(_page_content, 116, 30, LV_COLOR_MAKE(0x12, 0x18, 0x20), LV_OPA_80, 15);
+        lv_obj_align(lane, LV_ALIGN_BOTTOM_RIGHT, -32, -18);
+        style_hud_pill(lane);
+        lv_obj_t *lane_text = cjk_label(lane, "靠左车道", kTextDim);
         lv_obj_center(lane_text);
         return;
     }
 
-    for(int i = 0; i < 6; ++i) {
-        lv_obj_t *route = box(_page_content, 4, 54, kBlue, i == 2 ? LV_OPA_80 : LV_OPA_20, 2);
-        lv_obj_align(route, LV_ALIGN_LEFT_MID, 78, -138 + i * 50);
-    }
+    lv_obj_t *route_h1 = box(_page_content, 230, 4, kBlue, LV_OPA_20, 2);
+    lv_obj_align(route_h1, LV_ALIGN_CENTER, -238, 106);
+    lv_obj_t *route_v = box(_page_content, 4, 166, kBlue, LV_OPA_50, 2);
+    lv_obj_align(route_v, LV_ALIGN_CENTER, -124, 26);
+    lv_obj_t *route_h2 = box(_page_content, 360, 4, kBlue, LV_OPA_20, 2);
+    lv_obj_align(route_h2, LV_ALIGN_CENTER, 58, -56);
+    lv_obj_t *route_dot = box(_page_content, 16, 16, kBlue, LV_OPA_COVER, LV_RADIUS_CIRCLE);
+    lv_obj_align(route_dot, LV_ALIGN_CENTER, -124, -56);
 
-    lv_obj_t *title = cjk_label(_page_content, "导航中", kBlue);
-    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 50, 58);
+    lv_obj_t *title = box(_page_content, 92, 34, LV_COLOR_MAKE(0x12, 0x18, 0x20), LV_OPA_80, 17);
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 50, 52);
+    style_hud_pill(title);
+    lv_obj_t *title_text = cjk_label(title, "导航中", kBlue);
+    lv_obj_center(title_text);
 
-    lv_obj_t *eta = box(_page_content, 210, 44, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 22);
+    lv_obj_t *eta = box(_page_content, 220, 34, LV_COLOR_MAKE(0x12, 0x18, 0x20), LV_OPA_80, 17);
     lv_obj_align(eta, LV_ALIGN_TOP_RIGHT, -50, 52);
-    lv_obj_set_style_border_width(eta, 1, 0);
-    lv_obj_set_style_border_color(eta, LV_COLOR_MAKE(0x45, 0x46, 0x4d), 0);
-    lv_obj_set_style_border_opa(eta, LV_OPA_50, 0);
-    lv_obj_t *eta_text = cjk_label(eta, "剩余 8.6 km  18 分钟", kText);
+    style_hud_pill(eta);
+    lv_obj_t *eta_text = cjk_label(eta, "剩余 8.6 km  18 分钟", kTextDim);
     lv_obj_center(eta_text);
 
-    lv_obj_t *orb = box(_page_content, 128, 128, LV_COLOR_MAKE(0x0d, 0x2a, 0x52), LV_OPA_COVER, LV_RADIUS_CIRCLE);
-    lv_obj_align(orb, LV_ALIGN_CENTER, -176, -20);
+    lv_obj_t *orb = box(_page_content, 136, 136, LV_COLOR_MAKE(0x06, 0x1d, 0x33), LV_OPA_COVER, LV_RADIUS_CIRCLE);
+    lv_obj_align(orb, LV_ALIGN_CENTER, -168, -12);
     lv_obj_set_style_border_width(orb, 1, 0);
     lv_obj_set_style_border_color(orb, kBlue, 0);
-    lv_obj_set_style_border_opa(orb, LV_OPA_60, 0);
-    lv_obj_set_style_shadow_width(orb, 18, 0);
-    lv_obj_set_style_shadow_color(orb, LV_COLOR_MAKE(0x08, 0x18, 0x32), 0);
-    lv_obj_set_style_shadow_opa(orb, LV_OPA_60, 0);
+    lv_obj_set_style_border_opa(orb, LV_OPA_70, 0);
+    lv_obj_set_style_shadow_width(orb, 24, 0);
+    lv_obj_set_style_shadow_color(orb, LV_COLOR_MAKE(0x05, 0x16, 0x2a), 0);
+    lv_obj_set_style_shadow_opa(orb, LV_OPA_70, 0);
     lv_obj_t *turn = label(orb, LV_SYMBOL_LEFT, &lv_font_montserrat_48, kBlue);
     lv_obj_center(turn);
 
     lv_obj_t *distance = label(_page_content, "150 m", &lv_font_montserrat_48, kText);
-    lv_obj_align(distance, LV_ALIGN_CENTER, 38, -58);
+    lv_obj_align(distance, LV_ALIGN_CENTER, 52, -62);
     lv_obj_t *main = cjk_label(_page_content, "前方左转", kBlue);
-    lv_obj_align(main, LV_ALIGN_CENTER, 40, -8);
+    lv_obj_align(main, LV_ALIGN_CENTER, 58, -12);
     lv_obj_t *instruction = cjk_label(_page_content, "进入星光大道，随后保持靠左", kText);
-    lv_obj_align(instruction, LV_ALIGN_CENTER, 76, 32);
+    lv_obj_align(instruction, LV_ALIGN_CENTER, 88, 30);
     lv_obj_t *assistant = cjk_label(_page_content, "辅助动作：进入主路", kTextDim);
-    lv_obj_align(assistant, LV_ALIGN_CENTER, 70, 66);
+    lv_obj_align(assistant, LV_ALIGN_CENTER, 78, 64);
 
-    lv_obj_t *lane = box(_page_content, 260, 52, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 16);
-    lv_obj_align(lane, LV_ALIGN_BOTTOM_LEFT, 50, -56);
-    lv_obj_set_style_border_width(lane, 1, 0);
-    lv_obj_set_style_border_color(lane, LV_COLOR_MAKE(0x45, 0x46, 0x4d), 0);
-    lv_obj_set_style_border_opa(lane, LV_OPA_50, 0);
-    lv_obj_t *lane_label = cjk_label(lane, "车道建议", kTextDim);
+    lv_obj_t *lane = box(_page_content, 218, 42, LV_COLOR_MAKE(0x12, 0x18, 0x20), LV_OPA_80, 21);
+    lv_obj_align(lane, LV_ALIGN_BOTTOM_LEFT, 50, -54);
+    style_hud_pill(lane);
+    lv_obj_t *lane_label = cjk_label(lane, "车道", kTextDim);
     lv_obj_align(lane_label, LV_ALIGN_LEFT_MID, 18, 0);
-    lv_obj_t *lane_value = label(lane, LV_SYMBOL_LEFT "  |  " LV_SYMBOL_UP "  |  " LV_SYMBOL_RIGHT, &lv_font_montserrat_24, kText);
+    lv_obj_t *lane_value = cjk_label(lane, "靠左", kText);
     lv_obj_align(lane_value, LV_ALIGN_RIGHT_MID, -18, 0);
 
-    lv_obj_t *status = box(_page_content, 260, 52, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 16);
-    lv_obj_align(status, LV_ALIGN_BOTTOM_RIGHT, -50, -56);
-    lv_obj_set_style_border_width(status, 1, 0);
-    lv_obj_set_style_border_color(status, LV_COLOR_MAKE(0x45, 0x46, 0x4d), 0);
-    lv_obj_set_style_border_opa(status, LV_OPA_50, 0);
-    lv_obj_t *status_label = cjk_label(status, "路线策略", kTextDim);
+    lv_obj_t *status = box(_page_content, 236, 42, LV_COLOR_MAKE(0x12, 0x18, 0x20), LV_OPA_80, 21);
+    lv_obj_align(status, LV_ALIGN_BOTTOM_RIGHT, -50, -54);
+    style_hud_pill(status);
+    lv_obj_t *status_label = cjk_label(status, "路线", kTextDim);
     lv_obj_align(status_label, LV_ALIGN_LEFT_MID, 18, 0);
     lv_obj_t *status_value = cjk_label(status, "躲避拥堵  ETA 15:42", kGreen);
     lv_obj_align(status_value, LV_ALIGN_RIGHT_MID, -18, 0);
