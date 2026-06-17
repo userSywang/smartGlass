@@ -657,39 +657,94 @@ void LensReactUI::createNotesPage(void)
 void LensReactUI::createNavigationPage(void)
 {
     if(_view_height <= 260) {
-        lv_obj_t *orb = box(_page_content, 76, 76, LV_COLOR_MAKE(0x0d, 0x2a, 0x52), LV_OPA_COVER, LV_RADIUS_CIRCLE);
-        lv_obj_align(orb, LV_ALIGN_CENTER, -120, 0);
+        lv_obj_t *mode = box(_page_content, 72, 26, LV_COLOR_MAKE(0x0d, 0x2a, 0x52), LV_OPA_COVER, 13);
+        lv_obj_align(mode, LV_ALIGN_TOP_LEFT, 34, 22);
+        lv_obj_t *mode_text = cjk_label(mode, "导航中", kBlue);
+        lv_obj_center(mode_text);
+
+        lv_obj_t *summary = label(_page_content, "8.6 km  18 min", &lv_font_montserrat_16, kTextDim);
+        lv_obj_align(summary, LV_ALIGN_TOP_RIGHT, -34, 26);
+
+        lv_obj_t *orb = box(_page_content, 82, 82, LV_COLOR_MAKE(0x0d, 0x2a, 0x52), LV_OPA_COVER, LV_RADIUS_CIRCLE);
+        lv_obj_align(orb, LV_ALIGN_CENTER, -150, 8);
         lv_obj_set_style_border_width(orb, 1, 0);
         lv_obj_set_style_border_color(orb, kBlue, 0);
+        lv_obj_set_style_border_opa(orb, LV_OPA_50, 0);
         lv_obj_t *turn = label(orb, LV_SYMBOL_LEFT, &lv_font_montserrat_34, kBlue);
         lv_obj_center(turn);
 
-        lv_obj_t *title = label(_page_content, "Navigation Test", &lv_font_montserrat_24, kText);
-        lv_obj_align(title, LV_ALIGN_CENTER, 76, -16);
-        lv_obj_t *hint = label(_page_content, "Turn left in 150 m", &lv_font_montserrat_16, kBlue);
-        lv_obj_align(hint, LV_ALIGN_CENTER, 76, 20);
+        lv_obj_t *distance = label(_page_content, "150 m", &lv_font_montserrat_34, kText);
+        lv_obj_align(distance, LV_ALIGN_CENTER, -26, -22);
+        lv_obj_t *action = cjk_label(_page_content, "前方左转", kBlue);
+        lv_obj_align(action, LV_ALIGN_CENTER, -16, 14);
+        lv_obj_t *road = cjk_label(_page_content, "进入星光大道", kTextDim);
+        lv_obj_align(road, LV_ALIGN_CENTER, 96, 44);
+
+        lv_obj_t *lane = box(_page_content, 118, 28, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 14);
+        lv_obj_align(lane, LV_ALIGN_BOTTOM_RIGHT, -34, -20);
+        lv_obj_set_style_border_width(lane, 1, 0);
+        lv_obj_set_style_border_color(lane, LV_COLOR_MAKE(0x45, 0x46, 0x4d), 0);
+        lv_obj_set_style_border_opa(lane, LV_OPA_50, 0);
+        lv_obj_t *lane_text = cjk_label(lane, "靠左车道", kText);
+        lv_obj_center(lane_text);
         return;
     }
 
-    for(int i = 0; i < 12; ++i) {
-        lv_obj_t *h = box(_page_content, _width, 1, kText, LV_OPA_20, 0);
-        lv_obj_set_pos(h, 80 + i * 42, _height - 60 - i * 20);
-        lv_obj_t *v = box(_page_content, 1, _height / 2, kText, LV_OPA_20, 0);
-        lv_obj_set_pos(v, i * (_width / 12), _height / 2);
+    for(int i = 0; i < 6; ++i) {
+        lv_obj_t *route = box(_page_content, 4, 54, kBlue, i == 2 ? LV_OPA_80 : LV_OPA_20, 2);
+        lv_obj_align(route, LV_ALIGN_LEFT_MID, 78, -138 + i * 50);
     }
 
-    lv_obj_t *orb = box(_page_content, 132, 132, LV_COLOR_MAKE(0x0d, 0x2a, 0x52), LV_OPA_COVER, LV_RADIUS_CIRCLE);
-    lv_obj_center(orb);
+    lv_obj_t *title = cjk_label(_page_content, "导航中", kBlue);
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 50, 58);
+
+    lv_obj_t *eta = box(_page_content, 210, 44, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 22);
+    lv_obj_align(eta, LV_ALIGN_TOP_RIGHT, -50, 52);
+    lv_obj_set_style_border_width(eta, 1, 0);
+    lv_obj_set_style_border_color(eta, LV_COLOR_MAKE(0x45, 0x46, 0x4d), 0);
+    lv_obj_set_style_border_opa(eta, LV_OPA_50, 0);
+    lv_obj_t *eta_text = cjk_label(eta, "剩余 8.6 km  18 分钟", kText);
+    lv_obj_center(eta_text);
+
+    lv_obj_t *orb = box(_page_content, 128, 128, LV_COLOR_MAKE(0x0d, 0x2a, 0x52), LV_OPA_COVER, LV_RADIUS_CIRCLE);
+    lv_obj_align(orb, LV_ALIGN_CENTER, -176, -20);
     lv_obj_set_style_border_width(orb, 1, 0);
     lv_obj_set_style_border_color(orb, kBlue, 0);
-    lv_obj_set_style_border_opa(orb, LV_OPA_40, 0);
+    lv_obj_set_style_border_opa(orb, LV_OPA_60, 0);
+    lv_obj_set_style_shadow_width(orb, 18, 0);
+    lv_obj_set_style_shadow_color(orb, LV_COLOR_MAKE(0x08, 0x18, 0x32), 0);
+    lv_obj_set_style_shadow_opa(orb, LV_OPA_60, 0);
     lv_obj_t *turn = label(orb, LV_SYMBOL_LEFT, &lv_font_montserrat_48, kBlue);
     lv_obj_center(turn);
 
-    lv_obj_t *main = label(_page_content, "Turn Left", &lv_font_montserrat_48, kText);
-    lv_obj_align(main, LV_ALIGN_CENTER, 0, 112);
-    lv_obj_t *sub = label(_page_content, "150 m ahead  Star Avenue", &lv_font_montserrat_24, kBlue);
-    lv_obj_align(sub, LV_ALIGN_CENTER, 0, 166);
+    lv_obj_t *distance = label(_page_content, "150 m", &lv_font_montserrat_48, kText);
+    lv_obj_align(distance, LV_ALIGN_CENTER, 38, -58);
+    lv_obj_t *main = cjk_label(_page_content, "前方左转", kBlue);
+    lv_obj_align(main, LV_ALIGN_CENTER, 40, -8);
+    lv_obj_t *instruction = cjk_label(_page_content, "进入星光大道，随后保持靠左", kText);
+    lv_obj_align(instruction, LV_ALIGN_CENTER, 76, 32);
+    lv_obj_t *assistant = cjk_label(_page_content, "辅助动作：进入主路", kTextDim);
+    lv_obj_align(assistant, LV_ALIGN_CENTER, 70, 66);
+
+    lv_obj_t *lane = box(_page_content, 260, 52, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 16);
+    lv_obj_align(lane, LV_ALIGN_BOTTOM_LEFT, 50, -56);
+    lv_obj_set_style_border_width(lane, 1, 0);
+    lv_obj_set_style_border_color(lane, LV_COLOR_MAKE(0x45, 0x46, 0x4d), 0);
+    lv_obj_set_style_border_opa(lane, LV_OPA_50, 0);
+    lv_obj_t *lane_label = cjk_label(lane, "车道建议", kTextDim);
+    lv_obj_align(lane_label, LV_ALIGN_LEFT_MID, 18, 0);
+    lv_obj_t *lane_value = label(lane, LV_SYMBOL_LEFT "  |  " LV_SYMBOL_UP "  |  " LV_SYMBOL_RIGHT, &lv_font_montserrat_24, kText);
+    lv_obj_align(lane_value, LV_ALIGN_RIGHT_MID, -18, 0);
+
+    lv_obj_t *status = box(_page_content, 260, 52, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 16);
+    lv_obj_align(status, LV_ALIGN_BOTTOM_RIGHT, -50, -56);
+    lv_obj_set_style_border_width(status, 1, 0);
+    lv_obj_set_style_border_color(status, LV_COLOR_MAKE(0x45, 0x46, 0x4d), 0);
+    lv_obj_set_style_border_opa(status, LV_OPA_50, 0);
+    lv_obj_t *status_label = cjk_label(status, "路线策略", kTextDim);
+    lv_obj_align(status_label, LV_ALIGN_LEFT_MID, 18, 0);
+    lv_obj_t *status_value = cjk_label(status, "躲避拥堵  ETA 15:42", kGreen);
+    lv_obj_align(status_value, LV_ALIGN_RIGHT_MID, -18, 0);
 }
 
 void LensReactUI::createMusicPage(void)
