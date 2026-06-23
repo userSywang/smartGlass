@@ -306,7 +306,7 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
     _track = lv_obj_create(_home);
     set_plain(_track);
     lv_obj_set_size(_track, (kAppCount - 1) * _item_step + 104, 132);
-    lv_obj_align(_track, LV_ALIGN_TOP_MID, 0, kStatusBarHeight + 36);
+    lv_obj_align(_track, LV_ALIGN_BOTTOM_MID, 0, -18);
     lv_obj_set_style_bg_opa(_track, LV_OPA_TRANSP, 0);
 
     for(uint8_t i = 0; i < kAppCount; ++i) {
@@ -336,6 +336,17 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
         lv_obj_set_style_text_align(_tile_names[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(_tile_names[i], LV_ALIGN_TOP_MID, 0, 94);
     }
+
+    _dot_row = lv_obj_create(_home);
+    set_plain(_dot_row);
+    lv_obj_set_size(_dot_row, 116, 10);
+    lv_obj_align(_dot_row, LV_ALIGN_BOTTOM_MID, 0, -4);
+    lv_obj_set_style_bg_opa(_dot_row, LV_OPA_TRANSP, 0);
+
+    for(uint8_t i = 0; i < kAppCount; ++i) {
+        _dots[i] = box(_dot_row, 4, 4, kTextDim, LV_OPA_COVER, LV_RADIUS_CIRCLE);
+        lv_obj_set_pos(_dots[i], 6 + i * 13, 3);
+    }
 }
 
 void LensReactUI::createStatusBar(lv_coord_t width, lv_coord_t height)
@@ -348,17 +359,6 @@ void LensReactUI::createStatusBar(lv_coord_t width, lv_coord_t height)
 
     _clock_label = label(_status_bar, "9:41", &lv_font_montserrat_16, kText);
     lv_obj_align(_clock_label, LV_ALIGN_TOP_LEFT, 18, 6);
-
-    _dot_row = lv_obj_create(_status_bar);
-    set_plain(_dot_row);
-    lv_obj_set_size(_dot_row, 116, 10);
-    lv_obj_align(_dot_row, LV_ALIGN_TOP_MID, 0, 11);
-    lv_obj_set_style_bg_opa(_dot_row, LV_OPA_TRANSP, 0);
-
-    for(uint8_t i = 0; i < kAppCount; ++i) {
-        _dots[i] = box(_dot_row, 4, 4, kTextDim, LV_OPA_COVER, LV_RADIUS_CIRCLE);
-        lv_obj_set_pos(_dots[i], 6 + i * 13, 3);
-    }
 
     constexpr lv_coord_t battery_slot_width = 28;
     constexpr lv_coord_t battery_slot_height = 9;
