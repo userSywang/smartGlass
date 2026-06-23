@@ -306,7 +306,7 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
     _track = lv_obj_create(_home);
     set_plain(_track);
     lv_obj_set_size(_track, (kAppCount - 1) * _item_step + 104, 132);
-    lv_obj_align(_track, LV_ALIGN_BOTTOM_MID, 0, -18);
+    lv_obj_align(_track, LV_ALIGN_TOP_MID, 0, kStatusBarHeight + 36);
     lv_obj_set_style_bg_opa(_track, LV_OPA_TRANSP, 0);
 
     for(uint8_t i = 0; i < kAppCount; ++i) {
