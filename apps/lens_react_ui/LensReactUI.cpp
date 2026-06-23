@@ -760,9 +760,9 @@ void LensReactUI::createNavigationPage(void)
 
         lv_obj_t *bike = lv_img_create(_page_content);
         lv_img_set_src(bike, &nav_bicycle_icon);
-        lv_img_set_zoom(bike, 192);
+        lv_img_set_zoom(bike, 148);
         style_no_frame(bike);
-        lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -58, -14);
+        lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -58, -6);
 
         lv_obj_t *speed = label(_page_content, "5 Km/h", &lv_font_montserrat_14, kHudGreen);
         lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 18, -16);
@@ -800,9 +800,9 @@ void LensReactUI::createNavigationPage(void)
 
     lv_obj_t *bike = lv_img_create(_page_content);
     lv_img_set_src(bike, &nav_bicycle_icon);
-    lv_img_set_zoom(bike, 220);
+    lv_img_set_zoom(bike, 170);
     style_no_frame(bike);
-    lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -76, -24);
+    lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -76, -12);
 
     lv_obj_t *speed = label(_page_content, "5 Km/h", &lv_font_montserrat_16, kHudGreen);
     lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 22, -28);
