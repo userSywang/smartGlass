@@ -218,7 +218,7 @@ bool ESP_Brookesia_PhoneManager::processAppCloseExtra(ESP_Brookesia_CoreApp *app
         ESP_BROOKESIA_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr), false,
                                          "Process screen change failed");
         // If the recents_screen is visible, change back to the recents_screen
-        if (home.getRecentsScreen()->checkVisible()) {
+        if ((home.getRecentsScreen() != nullptr) && home.getRecentsScreen()->checkVisible()) {
             ESP_BROOKESIA_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_RECENTS_SCREEN, nullptr), false,
                                              "Process screen change failed");
         }
