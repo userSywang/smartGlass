@@ -687,121 +687,121 @@ void LensReactUI::createNotesPage(void)
 void LensReactUI::createNavigationPage(void)
 {
     if(_view_height <= 260) {
-        static const lv_point_t arrow_shaft[] = {{16, 54}, {16, 4}};
-        static const lv_point_t arrow_head[] = {{16, 4}, {3, 18}, {16, 4}, {29, 18}};
-        static const lv_point_t bike_frame[] = {{7, 20}, {18, 7}, {31, 20}, {18, 20}, {12, 20}, {18, 7}, {25, 7}};
-        static const lv_point_t bike_bar[] = {{25, 7}, {34, 10}};
+        static const lv_point_t arrow_shaft[] = {{12, 40}, {12, 4}};
+        static const lv_point_t arrow_head[] = {{12, 4}, {2, 15}, {12, 4}, {22, 15}};
+        static const lv_point_t bike_frame[] = {{5, 20}, {17, 6}, {30, 20}, {17, 20}, {10, 20}, {17, 6}, {25, 6}};
+        static const lv_point_t bike_bar[] = {{25, 6}, {36, 10}};
 
         lv_obj_t *baseline = box(_page_content, _view_width - 24, 2, kHudGreen, LV_OPA_70, 1);
-        lv_obj_align(baseline, LV_ALIGN_BOTTOM_MID, 0, -20);
+        lv_obj_align(baseline, LV_ALIGN_BOTTOM_MID, 0, -36);
         lv_obj_set_style_shadow_width(baseline, 10, 0);
         lv_obj_set_style_shadow_color(baseline, kHudGreen, 0);
         lv_obj_set_style_shadow_opa(baseline, LV_OPA_50, 0);
         lv_obj_t *tick_left = box(_page_content, 34, 2, kHudGreen, LV_OPA_50, 1);
-        lv_obj_align(tick_left, LV_ALIGN_BOTTOM_LEFT, 12, -16);
+        lv_obj_align(tick_left, LV_ALIGN_BOTTOM_LEFT, 12, -32);
         lv_obj_t *tick_mid = box(_page_content, 28, 2, kHudGreen, LV_OPA_40, 1);
-        lv_obj_align(tick_mid, LV_ALIGN_BOTTOM_MID, -18, -16);
+        lv_obj_align(tick_mid, LV_ALIGN_BOTTOM_MID, -18, -32);
 
         lv_obj_t *arrow = lv_obj_create(_page_content);
         set_plain(arrow);
-        lv_obj_set_size(arrow, 36, 60);
-        lv_obj_align(arrow, LV_ALIGN_BOTTOM_LEFT, 18, -34);
-        line(arrow, arrow_shaft, 2, kHudGreen, LV_OPA_COVER, 5);
-        line(arrow, arrow_head, 4, kHudGreen, LV_OPA_COVER, 5);
-        lv_obj_set_style_shadow_width(arrow, 18, 0);
+        lv_obj_set_size(arrow, 26, 46);
+        lv_obj_align(arrow, LV_ALIGN_BOTTOM_LEFT, 20, -46);
+        line(arrow, arrow_shaft, 2, kHudGreen, LV_OPA_COVER, 4);
+        line(arrow, arrow_head, 4, kHudGreen, LV_OPA_COVER, 4);
+        lv_obj_set_style_shadow_width(arrow, 12, 0);
         lv_obj_set_style_shadow_color(arrow, kHudGreen, 0);
-        lv_obj_set_style_shadow_opa(arrow, LV_OPA_60, 0);
+        lv_obj_set_style_shadow_opa(arrow, LV_OPA_50, 0);
 
-        lv_obj_t *distance = label(_page_content, "724m", &lv_font_montserrat_34, kHudGreen);
-        lv_obj_align(distance, LV_ALIGN_BOTTOM_LEFT, 58, -38);
-        lv_obj_set_style_shadow_width(distance, 14, 0);
+        lv_obj_t *distance = label(_page_content, "724m", &lv_font_montserrat_28, kHudGreen);
+        lv_obj_align(distance, LV_ALIGN_BOTTOM_LEFT, 54, -46);
+        lv_obj_set_style_shadow_width(distance, 10, 0);
         lv_obj_set_style_shadow_color(distance, kHudGreen, 0);
-        lv_obj_set_style_shadow_opa(distance, LV_OPA_60, 0);
+        lv_obj_set_style_shadow_opa(distance, LV_OPA_50, 0);
 
         lv_obj_t *bike = lv_obj_create(_page_content);
         set_plain(bike);
-        lv_obj_set_size(bike, 46, 28);
-        lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -48, -26);
+        lv_obj_set_size(bike, 42, 28);
+        lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -58, -42);
         lv_obj_t *wheel_a = box(bike, 12, 12, kBlack, LV_OPA_TRANSP, LV_RADIUS_CIRCLE);
-        lv_obj_set_pos(wheel_a, 2, 14);
+        lv_obj_set_pos(wheel_a, 0, 16);
         style_vector_ring(wheel_a, kHudGreen);
         lv_obj_t *wheel_b = box(bike, 12, 12, kBlack, LV_OPA_TRANSP, LV_RADIUS_CIRCLE);
-        lv_obj_set_pos(wheel_b, 28, 14);
+        lv_obj_set_pos(wheel_b, 26, 16);
         style_vector_ring(wheel_b, kHudGreen);
-        line(bike, bike_frame, 7, kHudGreen, LV_OPA_80, 2);
-        line(bike, bike_bar, 2, kHudGreen, LV_OPA_80, 2);
+        line(bike, bike_frame, 7, kHudGreen, LV_OPA_COVER, 2);
+        line(bike, bike_bar, 2, kHudGreen, LV_OPA_COVER, 2);
 
-        lv_obj_t *speed = label(_page_content, "5  Km/h", &lv_font_montserrat_14, kHudGreen);
-        lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 22, -28);
-        lv_obj_set_style_shadow_width(speed, 10, 0);
+        lv_obj_t *speed = label(_page_content, "5 Km/h", &lv_font_montserrat_14, kHudGreen);
+        lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 18, -44);
+        lv_obj_set_style_shadow_width(speed, 8, 0);
         lv_obj_set_style_shadow_color(speed, kHudGreen, 0);
-        lv_obj_set_style_shadow_opa(speed, LV_OPA_50, 0);
+        lv_obj_set_style_shadow_opa(speed, LV_OPA_40, 0);
 
         lv_obj_t *remain = cjk_label(_page_content, "剩余:2.8公里 10分钟", kHudGreen);
-        lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -22, -30);
-        lv_obj_set_style_shadow_width(remain, 10, 0);
+        lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -18, -45);
+        lv_obj_set_style_shadow_width(remain, 8, 0);
         lv_obj_set_style_shadow_color(remain, kHudGreen, 0);
-        lv_obj_set_style_shadow_opa(remain, LV_OPA_50, 0);
+        lv_obj_set_style_shadow_opa(remain, LV_OPA_40, 0);
         return;
     }
 
-    static const lv_point_t arrow_shaft[] = {{24, 82}, {24, 4}};
-    static const lv_point_t arrow_head[] = {{24, 4}, {4, 26}, {24, 4}, {44, 26}};
-    static const lv_point_t bike_frame[] = {{9, 26}, {24, 8}, {42, 26}, {24, 26}, {16, 26}, {24, 8}, {34, 8}};
-    static const lv_point_t bike_bar[] = {{34, 8}, {48, 13}};
+    static const lv_point_t arrow_shaft[] = {{18, 62}, {18, 4}};
+    static const lv_point_t arrow_head[] = {{18, 4}, {4, 20}, {18, 4}, {32, 20}};
+    static const lv_point_t bike_frame[] = {{7, 24}, {21, 7}, {37, 24}, {21, 24}, {13, 24}, {21, 7}, {31, 7}};
+    static const lv_point_t bike_bar[] = {{31, 7}, {44, 12}};
 
     lv_obj_t *baseline = box(_page_content, _width - 40, 2, kHudGreen, LV_OPA_70, 1);
-    lv_obj_align(baseline, LV_ALIGN_BOTTOM_MID, 0, -72);
+    lv_obj_align(baseline, LV_ALIGN_BOTTOM_MID, 0, -76);
     lv_obj_set_style_shadow_width(baseline, 14, 0);
     lv_obj_set_style_shadow_color(baseline, kHudGreen, 0);
     lv_obj_set_style_shadow_opa(baseline, LV_OPA_60, 0);
     lv_obj_t *tick_left = box(_page_content, 72, 2, kHudGreen, LV_OPA_40, 1);
-    lv_obj_align(tick_left, LV_ALIGN_BOTTOM_LEFT, 20, -66);
+    lv_obj_align(tick_left, LV_ALIGN_BOTTOM_LEFT, 20, -70);
     lv_obj_t *tick_mid = box(_page_content, 60, 2, kHudGreen, LV_OPA_30, 1);
-    lv_obj_align(tick_mid, LV_ALIGN_BOTTOM_MID, -40, -66);
+    lv_obj_align(tick_mid, LV_ALIGN_BOTTOM_MID, -40, -70);
     lv_obj_t *tick_right = box(_page_content, 72, 2, kHudGreen, LV_OPA_40, 1);
-    lv_obj_align(tick_right, LV_ALIGN_BOTTOM_RIGHT, -20, -66);
+    lv_obj_align(tick_right, LV_ALIGN_BOTTOM_RIGHT, -20, -70);
 
     lv_obj_t *arrow = lv_obj_create(_page_content);
     set_plain(arrow);
-    lv_obj_set_size(arrow, 54, 88);
-    lv_obj_align(arrow, LV_ALIGN_BOTTOM_LEFT, 36, -86);
-    line(arrow, arrow_shaft, 2, kHudGreen, LV_OPA_COVER, 7);
-    line(arrow, arrow_head, 4, kHudGreen, LV_OPA_COVER, 7);
-    lv_obj_set_style_shadow_width(arrow, 22, 0);
+    lv_obj_set_size(arrow, 40, 68);
+    lv_obj_align(arrow, LV_ALIGN_BOTTOM_LEFT, 40, -92);
+    line(arrow, arrow_shaft, 2, kHudGreen, LV_OPA_COVER, 5);
+    line(arrow, arrow_head, 4, kHudGreen, LV_OPA_COVER, 5);
+    lv_obj_set_style_shadow_width(arrow, 16, 0);
     lv_obj_set_style_shadow_color(arrow, kHudGreen, 0);
-    lv_obj_set_style_shadow_opa(arrow, LV_OPA_60, 0);
+    lv_obj_set_style_shadow_opa(arrow, LV_OPA_50, 0);
 
-    lv_obj_t *distance = label(_page_content, "724m", &lv_font_montserrat_48, kHudGreen);
-    lv_obj_align(distance, LV_ALIGN_BOTTOM_LEFT, 88, -92);
-    lv_obj_set_style_shadow_width(distance, 18, 0);
+    lv_obj_t *distance = label(_page_content, "724m", &lv_font_montserrat_38, kHudGreen);
+    lv_obj_align(distance, LV_ALIGN_BOTTOM_LEFT, 92, -96);
+    lv_obj_set_style_shadow_width(distance, 14, 0);
     lv_obj_set_style_shadow_color(distance, kHudGreen, 0);
-    lv_obj_set_style_shadow_opa(distance, LV_OPA_60, 0);
+    lv_obj_set_style_shadow_opa(distance, LV_OPA_50, 0);
 
     lv_obj_t *bike = lv_obj_create(_page_content);
     set_plain(bike);
-    lv_obj_set_size(bike, 62, 36);
-    lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -64, -78);
-    lv_obj_t *wheel_a = box(bike, 16, 16, kBlack, LV_OPA_TRANSP, LV_RADIUS_CIRCLE);
-    lv_obj_set_pos(wheel_a, 1, 19);
+    lv_obj_set_size(bike, 52, 32);
+    lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -76, -88);
+    lv_obj_t *wheel_a = box(bike, 14, 14, kBlack, LV_OPA_TRANSP, LV_RADIUS_CIRCLE);
+    lv_obj_set_pos(wheel_a, 0, 17);
     style_vector_ring(wheel_a, kHudGreen);
-    lv_obj_t *wheel_b = box(bike, 16, 16, kBlack, LV_OPA_TRANSP, LV_RADIUS_CIRCLE);
-    lv_obj_set_pos(wheel_b, 36, 19);
+    lv_obj_t *wheel_b = box(bike, 14, 14, kBlack, LV_OPA_TRANSP, LV_RADIUS_CIRCLE);
+    lv_obj_set_pos(wheel_b, 33, 17);
     style_vector_ring(wheel_b, kHudGreen);
-    line(bike, bike_frame, 7, kHudGreen, LV_OPA_80, 3);
-    line(bike, bike_bar, 2, kHudGreen, LV_OPA_80, 3);
+    line(bike, bike_frame, 7, kHudGreen, LV_OPA_COVER, 2);
+    line(bike, bike_bar, 2, kHudGreen, LV_OPA_COVER, 2);
 
-    lv_obj_t *speed = label(_page_content, "5  Km/h", &lv_font_montserrat_16, kHudGreen);
-    lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 18, -82);
-    lv_obj_set_style_shadow_width(speed, 12, 0);
+    lv_obj_t *speed = label(_page_content, "5 Km/h", &lv_font_montserrat_16, kHudGreen);
+    lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 22, -88);
+    lv_obj_set_style_shadow_width(speed, 10, 0);
     lv_obj_set_style_shadow_color(speed, kHudGreen, 0);
-    lv_obj_set_style_shadow_opa(speed, LV_OPA_50, 0);
+    lv_obj_set_style_shadow_opa(speed, LV_OPA_40, 0);
 
     lv_obj_t *remain = cjk_label(_page_content, "剩余:2.8公里 10分钟", kHudGreen);
-    lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -42, -84);
-    lv_obj_set_style_shadow_width(remain, 12, 0);
+    lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -42, -90);
+    lv_obj_set_style_shadow_width(remain, 10, 0);
     lv_obj_set_style_shadow_color(remain, kHudGreen, 0);
-    lv_obj_set_style_shadow_opa(remain, LV_OPA_50, 0);
+    lv_obj_set_style_shadow_opa(remain, LV_OPA_40, 0);
 }
 
 void LensReactUI::createMusicPage(void)
