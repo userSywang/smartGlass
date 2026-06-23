@@ -122,6 +122,14 @@ void style_button(lv_obj_t *btn, lv_color_t color, lv_opa_t opa)
     lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
 }
 
+void style_no_frame(lv_obj_t *obj)
+{
+    lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(obj, 0, 0);
+    lv_obj_set_style_outline_width(obj, 0, 0);
+    lv_obj_set_style_shadow_width(obj, 0, 0);
+}
+
 void style_soft_row(lv_obj_t *row)
 {
     lv_obj_set_style_bg_color(row, LV_COLOR_MAKE(0x22, 0x23, 0x27), 0);
@@ -178,8 +186,8 @@ bool LensReactUI::run(void)
     _selected_index = 1;
     _current_app = -1;
     _prompt_focus = 1;
-    _view_width = LV_MIN((lv_coord_t)640, _width);
-    _view_height = LV_MIN((lv_coord_t)200, _height);
+    _view_width = _width;
+    _view_height = _height;
     _item_step = 118;
 
     _root = lv_obj_create(lv_scr_act());
@@ -679,15 +687,12 @@ void LensReactUI::createNotesPage(void)
 
 void LensReactUI::createNavigationPage(void)
 {
-    if(_view_height <= 260) {
+    if(_view_height <= 360) {
         static const lv_point_t arrow_shaft[] = {{12, 40}, {12, 4}};
         static const lv_point_t arrow_head[] = {{12, 4}, {2, 15}, {12, 4}, {22, 15}};
 
         lv_obj_t *baseline = box(_page_content, _view_width - 24, 2, kHudGreen, LV_OPA_70, 1);
         lv_obj_align(baseline, LV_ALIGN_BOTTOM_MID, 0, -8);
-        lv_obj_set_style_shadow_width(baseline, 10, 0);
-        lv_obj_set_style_shadow_color(baseline, kHudGreen, 0);
-        lv_obj_set_style_shadow_opa(baseline, LV_OPA_50, 0);
         lv_obj_t *tick_left = box(_page_content, 34, 2, kHudGreen, LV_OPA_50, 1);
         lv_obj_align(tick_left, LV_ALIGN_BOTTOM_LEFT, 12, -4);
         lv_obj_t *tick_mid = box(_page_content, 28, 2, kHudGreen, LV_OPA_40, 1);
@@ -699,35 +704,27 @@ void LensReactUI::createNavigationPage(void)
         lv_obj_align(arrow, LV_ALIGN_BOTTOM_LEFT, 20, -18);
         line(arrow, arrow_shaft, 2, kHudGreen, LV_OPA_COVER, 4);
         line(arrow, arrow_head, 4, kHudGreen, LV_OPA_COVER, 4);
-        lv_obj_set_style_shadow_width(arrow, 12, 0);
-        lv_obj_set_style_shadow_color(arrow, kHudGreen, 0);
-        lv_obj_set_style_shadow_opa(arrow, LV_OPA_50, 0);
+        style_no_frame(arrow);
 
         lv_obj_t *distance = label(_page_content, "724m", &lv_font_montserrat_28, kHudGreen);
         lv_obj_align(distance, LV_ALIGN_BOTTOM_LEFT, 54, -18);
-        lv_obj_set_style_shadow_width(distance, 10, 0);
-        lv_obj_set_style_shadow_color(distance, kHudGreen, 0);
-        lv_obj_set_style_shadow_opa(distance, LV_OPA_50, 0);
+        style_no_frame(distance);
 
         lv_obj_t *bike = lv_img_create(_page_content);
         lv_img_set_src(bike, &nav_bicycle_icon);
         lv_img_set_zoom(bike, 220);
         lv_obj_set_style_img_recolor(bike, kHudGreen, 0);
         lv_obj_set_style_img_recolor_opa(bike, LV_OPA_COVER, 0);
-        lv_obj_set_style_border_width(bike, 0, 0);
+        style_no_frame(bike);
         lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -58, -16);
 
         lv_obj_t *speed = label(_page_content, "5 Km/h", &lv_font_montserrat_14, kHudGreen);
         lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 18, -16);
-        lv_obj_set_style_shadow_width(speed, 8, 0);
-        lv_obj_set_style_shadow_color(speed, kHudGreen, 0);
-        lv_obj_set_style_shadow_opa(speed, LV_OPA_40, 0);
+        style_no_frame(speed);
 
         lv_obj_t *remain = cjk_label(_page_content, "剩余:2.8公里 10分钟", kHudGreen);
         lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -18, -17);
-        lv_obj_set_style_shadow_width(remain, 8, 0);
-        lv_obj_set_style_shadow_color(remain, kHudGreen, 0);
-        lv_obj_set_style_shadow_opa(remain, LV_OPA_40, 0);
+        style_no_frame(remain);
         return;
     }
 
@@ -736,9 +733,6 @@ void LensReactUI::createNavigationPage(void)
 
     lv_obj_t *baseline = box(_page_content, _width - 40, 2, kHudGreen, LV_OPA_70, 1);
     lv_obj_align(baseline, LV_ALIGN_BOTTOM_MID, 0, -16);
-    lv_obj_set_style_shadow_width(baseline, 14, 0);
-    lv_obj_set_style_shadow_color(baseline, kHudGreen, 0);
-    lv_obj_set_style_shadow_opa(baseline, LV_OPA_60, 0);
     lv_obj_t *tick_left = box(_page_content, 72, 2, kHudGreen, LV_OPA_40, 1);
     lv_obj_align(tick_left, LV_ALIGN_BOTTOM_LEFT, 20, -10);
     lv_obj_t *tick_mid = box(_page_content, 60, 2, kHudGreen, LV_OPA_30, 1);
@@ -752,35 +746,27 @@ void LensReactUI::createNavigationPage(void)
     lv_obj_align(arrow, LV_ALIGN_BOTTOM_LEFT, 40, -32);
     line(arrow, arrow_shaft, 2, kHudGreen, LV_OPA_COVER, 5);
     line(arrow, arrow_head, 4, kHudGreen, LV_OPA_COVER, 5);
-    lv_obj_set_style_shadow_width(arrow, 16, 0);
-    lv_obj_set_style_shadow_color(arrow, kHudGreen, 0);
-    lv_obj_set_style_shadow_opa(arrow, LV_OPA_50, 0);
+    style_no_frame(arrow);
 
     lv_obj_t *distance = label(_page_content, "724m", &lv_font_montserrat_38, kHudGreen);
     lv_obj_align(distance, LV_ALIGN_BOTTOM_LEFT, 92, -36);
-    lv_obj_set_style_shadow_width(distance, 14, 0);
-    lv_obj_set_style_shadow_color(distance, kHudGreen, 0);
-    lv_obj_set_style_shadow_opa(distance, LV_OPA_50, 0);
+    style_no_frame(distance);
 
     lv_obj_t *bike = lv_img_create(_page_content);
     lv_img_set_src(bike, &nav_bicycle_icon);
     lv_img_set_zoom(bike, 256);
     lv_obj_set_style_img_recolor(bike, kHudGreen, 0);
     lv_obj_set_style_img_recolor_opa(bike, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(bike, 0, 0);
+    style_no_frame(bike);
     lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -76, -28);
 
     lv_obj_t *speed = label(_page_content, "5 Km/h", &lv_font_montserrat_16, kHudGreen);
     lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 22, -28);
-    lv_obj_set_style_shadow_width(speed, 10, 0);
-    lv_obj_set_style_shadow_color(speed, kHudGreen, 0);
-    lv_obj_set_style_shadow_opa(speed, LV_OPA_40, 0);
+    style_no_frame(speed);
 
     lv_obj_t *remain = cjk_label(_page_content, "剩余:2.8公里 10分钟", kHudGreen);
     lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -42, -30);
-    lv_obj_set_style_shadow_width(remain, 10, 0);
-    lv_obj_set_style_shadow_color(remain, kHudGreen, 0);
-    lv_obj_set_style_shadow_opa(remain, LV_OPA_40, 0);
+    style_no_frame(remain);
 }
 
 void LensReactUI::createMusicPage(void)
