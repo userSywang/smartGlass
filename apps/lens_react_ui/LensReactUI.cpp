@@ -11,6 +11,7 @@
 
 LV_FONT_DECLARE(smartglass_font_16_cjk);
 LV_IMG_DECLARE(nav_bicycle_icon);
+LV_IMG_DECLARE(nav_flag_icon);
 
 namespace {
 constexpr lv_color_t kBlack = LV_COLOR_MAKE(0x00, 0x00, 0x00);
@@ -305,7 +306,7 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
     _track = lv_obj_create(_home);
     set_plain(_track);
     lv_obj_set_size(_track, (kAppCount - 1) * _item_step + 104, 132);
-    lv_obj_set_y(_track, LV_MAX(kStatusBarHeight + 18, (height - 132) / 2));
+    lv_obj_align(_track, LV_ALIGN_BOTTOM_MID, 0, -18);
     lv_obj_set_style_bg_opa(_track, LV_OPA_TRANSP, 0);
 
     for(uint8_t i = 0; i < kAppCount; ++i) {
@@ -765,8 +766,14 @@ void LensReactUI::createNavigationPage(void)
         style_no_frame(speed);
 
         lv_obj_t *remain = cjk_label(_page_content, "剩余:2.8公里 10分钟", kHudGreen);
-        lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -18, -17);
+        lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -52, -17);
         style_no_frame(remain);
+
+        lv_obj_t *flag = lv_img_create(_page_content);
+        lv_img_set_src(flag, &nav_flag_icon);
+        lv_img_set_zoom(flag, 132);
+        style_no_frame(flag);
+        lv_obj_align(flag, LV_ALIGN_BOTTOM_RIGHT, -14, -5);
         return;
     }
 
@@ -799,8 +806,14 @@ void LensReactUI::createNavigationPage(void)
     style_no_frame(speed);
 
     lv_obj_t *remain = cjk_label(_page_content, "剩余:2.8公里 10分钟", kHudGreen);
-    lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -42, -30);
+    lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -92, -30);
     style_no_frame(remain);
+
+    lv_obj_t *flag = lv_img_create(_page_content);
+    lv_img_set_src(flag, &nav_flag_icon);
+    lv_img_set_zoom(flag, 168);
+    style_no_frame(flag);
+    lv_obj_align(flag, LV_ALIGN_BOTTOM_RIGHT, -34, -12);
 }
 
 void LensReactUI::createMusicPage(void)
