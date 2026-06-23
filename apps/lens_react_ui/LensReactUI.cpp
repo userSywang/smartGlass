@@ -303,10 +303,16 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
     lv_obj_set_style_bg_color(_home, kHomeBackground, 0);
     lv_obj_set_style_bg_opa(_home, LV_OPA_COVER, 0);
 
-    _track = lv_obj_create(_home);
+    lv_obj_t *rail = lv_obj_create(_home);
+    set_plain(rail);
+    lv_obj_set_size(rail, LV_MIN((lv_coord_t)640, width), 132);
+    lv_obj_align(rail, LV_ALIGN_BOTTOM_MID, 0, -18);
+    lv_obj_set_style_bg_opa(rail, LV_OPA_TRANSP, 0);
+
+    _track = lv_obj_create(rail);
     set_plain(_track);
     lv_obj_set_size(_track, (kAppCount - 1) * _item_step + 104, 132);
-    lv_obj_align(_track, LV_ALIGN_BOTTOM_MID, 0, -18);
+    lv_obj_set_y(_track, 0);
     lv_obj_set_style_bg_opa(_track, LV_OPA_TRANSP, 0);
 
     for(uint8_t i = 0; i < kAppCount; ++i) {
@@ -414,9 +420,10 @@ void LensReactUI::selectIndex(uint8_t index, bool animate)
         return;
     }
     _selected_index = index;
+    const lv_coord_t rail_width = _track ? lv_obj_get_width(lv_obj_get_parent(_track)) : _view_width;
     const lv_coord_t content_width = (kAppCount - 1) * _item_step + 104;
-    lv_coord_t target_x = (_view_width / 2) - 52 - (lv_coord_t)(_selected_index * _item_step);
-    const lv_coord_t min_x = _view_width - content_width - 12;
+    lv_coord_t target_x = (rail_width / 2) - 52 - (lv_coord_t)(_selected_index * _item_step);
+    const lv_coord_t min_x = rail_width - content_width - 12;
     if(target_x > 12) {
         target_x = 12;
     } else if(target_x < min_x) {
