@@ -741,10 +741,6 @@ void LensReactUI::createNavigationPage(void)
 
         lv_obj_t *baseline = box(_page_content, _view_width - 24, 2, kHudGreen, LV_OPA_70, 1);
         lv_obj_align(baseline, LV_ALIGN_BOTTOM_MID, 0, -8);
-        lv_obj_t *tick_left = box(_page_content, 34, 2, kHudGreen, LV_OPA_50, 1);
-        lv_obj_align(tick_left, LV_ALIGN_BOTTOM_LEFT, 12, -4);
-        lv_obj_t *tick_mid = box(_page_content, 28, 2, kHudGreen, LV_OPA_40, 1);
-        lv_obj_align(tick_mid, LV_ALIGN_BOTTOM_MID, -18, -4);
 
         lv_obj_t *arrow = lv_obj_create(_page_content);
         set_plain(arrow);
@@ -762,7 +758,7 @@ void LensReactUI::createNavigationPage(void)
         lv_img_set_src(bike, &nav_bicycle_icon);
         lv_img_set_zoom(bike, 148);
         style_no_frame(bike);
-        lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -58, -6);
+        lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -44, -2);
 
         lv_obj_t *speed = label(_page_content, "5 Km/h", &lv_font_montserrat_14, kHudGreen);
         lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 18, -16);
@@ -779,12 +775,6 @@ void LensReactUI::createNavigationPage(void)
 
     lv_obj_t *baseline = box(_page_content, _width - 40, 2, kHudGreen, LV_OPA_70, 1);
     lv_obj_align(baseline, LV_ALIGN_BOTTOM_MID, 0, -16);
-    lv_obj_t *tick_left = box(_page_content, 72, 2, kHudGreen, LV_OPA_40, 1);
-    lv_obj_align(tick_left, LV_ALIGN_BOTTOM_LEFT, 20, -10);
-    lv_obj_t *tick_mid = box(_page_content, 60, 2, kHudGreen, LV_OPA_30, 1);
-    lv_obj_align(tick_mid, LV_ALIGN_BOTTOM_MID, -40, -10);
-    lv_obj_t *tick_right = box(_page_content, 72, 2, kHudGreen, LV_OPA_40, 1);
-    lv_obj_align(tick_right, LV_ALIGN_BOTTOM_RIGHT, -20, -10);
 
     lv_obj_t *arrow = lv_obj_create(_page_content);
     set_plain(arrow);
@@ -802,7 +792,7 @@ void LensReactUI::createNavigationPage(void)
     lv_img_set_src(bike, &nav_bicycle_icon);
     lv_img_set_zoom(bike, 170);
     style_no_frame(bike);
-    lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -76, -12);
+    lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -54, -6);
 
     lv_obj_t *speed = label(_page_content, "5 Km/h", &lv_font_montserrat_16, kHudGreen);
     lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 22, -28);
