@@ -15,6 +15,13 @@ LV_IMG_DECLARE(nav_bicycle_icon);
 namespace {
 constexpr lv_color_t kBlack = LV_COLOR_MAKE(0x00, 0x00, 0x00);
 constexpr lv_color_t kWhite = LV_COLOR_MAKE(0xff, 0xff, 0xff);
+constexpr lv_color_t kHomeBackground = LV_COLOR_MAKE(0xff, 0xff, 0xff);
+constexpr lv_color_t kHomeShell = LV_COLOR_MAKE(0xf1, 0xf1, 0xf3);
+constexpr lv_color_t kHomeChrome = LV_COLOR_MAKE(0x18, 0x18, 0x1b);
+constexpr lv_color_t kHomeTextDim = LV_COLOR_MAKE(0x52, 0x52, 0x5a);
+constexpr lv_color_t kHomeDotDim = LV_COLOR_MAKE(0x9c, 0x9c, 0xa3);
+constexpr lv_color_t kHomeBorder = LV_COLOR_MAKE(0x26, 0x26, 0x2a);
+constexpr lv_color_t kSelectedBorder = LV_COLOR_MAKE(0xd4, 0xd4, 0xd8);
 constexpr lv_color_t kPanel = LV_COLOR_MAKE(0x18, 0x18, 0x1b);
 constexpr lv_color_t kPanelSoft = LV_COLOR_MAKE(0x27, 0x27, 0x2a);
 constexpr lv_color_t kText = LV_COLOR_MAKE(0xf4, 0xf4, 0xf5);
@@ -183,7 +190,7 @@ bool LensReactUI::run(void)
     const lv_area_t area = getVisualArea();
     _width = area.x2 - area.x1 + 1;
     _height = area.y2 - area.y1 + 1;
-    _selected_index = 1;
+    _selected_index = 2;
     _current_app = -1;
     _prompt_focus = 1;
     _view_width = _width;
@@ -292,12 +299,13 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
     _home = lv_obj_create(_viewport);
     set_plain(_home);
     lv_obj_set_size(_home, width, height);
-    lv_obj_set_style_bg_opa(_home, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_color(_home, kHomeBackground, 0);
+    lv_obj_set_style_bg_opa(_home, LV_OPA_COVER, 0);
 
     _track = lv_obj_create(_home);
     set_plain(_track);
     lv_obj_set_size(_track, (kAppCount - 1) * _item_step + 104, 132);
-    lv_obj_set_y(_track, 26);
+    lv_obj_set_y(_track, LV_MAX(kStatusBarHeight + 18, (height - 132) / 2));
     lv_obj_set_style_bg_opa(_track, LV_OPA_TRANSP, 0);
 
     for(uint8_t i = 0; i < kAppCount; ++i) {
@@ -441,25 +449,29 @@ void LensReactUI::updateTileStyles(void)
         lv_obj_t *shell = lv_obj_get_child(tile, 0);
         lv_obj_t *icon_bg = shell ? lv_obj_get_child(shell, 0) : nullptr;
         const bool selected = i == _selected_index;
-        lv_color_t border_color = kBlack;
+        const bool on_home = _current_app < 0;
+        lv_color_t border_color = on_home ? kHomeBorder : kBlack;
         if(selected) {
-            border_color = LV_COLOR_MAKE(0xd4, 0xd4, 0xd8);
+            border_color = on_home ? kHomeChrome : kSelectedBorder;
         }
         lv_obj_set_size(shell, selected ? 88 : 64, selected ? 88 : 64);
         lv_obj_align(shell, LV_ALIGN_TOP_MID, 0, selected ? 0 : 10);
         lv_obj_set_style_border_color(shell, border_color, 0);
         lv_obj_set_style_border_opa(shell, selected ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
-        lv_obj_set_style_bg_opa(shell, selected ? LV_OPA_30 : LV_OPA_TRANSP, 0);
+        lv_obj_set_style_bg_color(shell, on_home ? kHomeShell : kPanelSoft, 0);
+        lv_obj_set_style_bg_opa(shell, selected ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
         lv_obj_set_style_opa(tile, LV_OPA_COVER, 0);
         lv_obj_set_style_transform_zoom(tile, 256, 0);
         if(icon_bg) {
             lv_obj_set_size(icon_bg, selected ? 58 : 50, selected ? 58 : 50);
             lv_obj_center(icon_bg);
             lv_obj_set_style_radius(icon_bg, selected ? 10 : 8, 0);
+            lv_obj_set_style_bg_color(icon_bg, on_home ? kHomeChrome : kPanel, 0);
         }
         if(_tile_names[i]) {
             lv_obj_set_style_opa(_tile_names[i], LV_OPA_COVER, 0);
-            lv_obj_set_style_text_color(_tile_names[i], selected ? kText : kTextDim, 0);
+            const lv_color_t name_color = on_home ? (selected ? kBlack : kHomeTextDim) : (selected ? kText : kTextDim);
+            lv_obj_set_style_text_color(_tile_names[i], name_color, 0);
         }
     }
 }
@@ -473,7 +485,11 @@ void LensReactUI::updateDots(void)
         const bool selected = i == _selected_index;
         lv_obj_set_size(_dots[i], selected ? 14 : 4, 4);
         lv_obj_set_x(_dots[i], selected ? (2 + i * 13) : (6 + i * 13));
-        lv_obj_set_style_bg_color(_dots[i], selected ? kText : kTextDim, 0);
+        if(_current_app < 0) {
+            lv_obj_set_style_bg_color(_dots[i], selected ? kBlack : kHomeDotDim, 0);
+        } else {
+            lv_obj_set_style_bg_color(_dots[i], selected ? kText : kTextDim, 0);
+        }
     }
 }
 
@@ -503,8 +519,24 @@ void LensReactUI::showHome(void)
         lv_obj_clear_flag(_assistant_button, LV_OBJ_FLAG_HIDDEN);
     }
     if(_status_bar) {
+        lv_obj_set_style_text_color(_clock_label, kBlack, 0);
+        lv_obj_set_style_text_color(_battery_label, kBlack, 0);
+        lv_obj_set_style_bg_color(_battery_fill, kBlack, 0);
+        uint32_t child_count = lv_obj_get_child_cnt(_status_bar);
+        for(uint32_t i = 0; i < child_count; ++i) {
+            lv_obj_t *child = lv_obj_get_child(_status_bar, i);
+            if(child == _assistant_button) {
+                continue;
+            }
+            lv_obj_set_style_border_color(child, kBlack, 0);
+            if(lv_obj_get_width(child) <= 4 && lv_obj_get_height(child) <= 10) {
+                lv_obj_set_style_bg_color(child, kBlack, 0);
+            }
+        }
         lv_obj_move_foreground(_status_bar);
     }
+    updateTileStyles();
+    updateDots();
 }
 
 void LensReactUI::showApp(uint8_t index)
@@ -529,6 +561,22 @@ void LensReactUI::showApp(uint8_t index)
     }
     if(_assistant_button) {
         lv_obj_add_flag(_assistant_button, LV_OBJ_FLAG_HIDDEN);
+    }
+    if(_status_bar) {
+        lv_obj_set_style_text_color(_clock_label, kText, 0);
+        lv_obj_set_style_text_color(_battery_label, kText, 0);
+        lv_obj_set_style_bg_color(_battery_fill, kWhite, 0);
+        uint32_t child_count = lv_obj_get_child_cnt(_status_bar);
+        for(uint32_t i = 0; i < child_count; ++i) {
+            lv_obj_t *child = lv_obj_get_child(_status_bar, i);
+            if(child == _assistant_button) {
+                continue;
+            }
+            lv_obj_set_style_border_color(child, kWhite, 0);
+            if(lv_obj_get_width(child) <= 4 && lv_obj_get_height(child) <= 10) {
+                lv_obj_set_style_bg_color(child, kWhite, 0);
+            }
+        }
     }
     rebuildPage();
     if(_status_bar) {
@@ -713,8 +761,6 @@ void LensReactUI::createNavigationPage(void)
         lv_obj_t *bike = lv_img_create(_page_content);
         lv_img_set_src(bike, &nav_bicycle_icon);
         lv_img_set_zoom(bike, 220);
-        lv_obj_set_style_img_recolor(bike, kHudGreen, 0);
-        lv_obj_set_style_img_recolor_opa(bike, LV_OPA_COVER, 0);
         style_no_frame(bike);
         lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -58, -16);
 
@@ -755,8 +801,6 @@ void LensReactUI::createNavigationPage(void)
     lv_obj_t *bike = lv_img_create(_page_content);
     lv_img_set_src(bike, &nav_bicycle_icon);
     lv_img_set_zoom(bike, 256);
-    lv_obj_set_style_img_recolor(bike, kHudGreen, 0);
-    lv_obj_set_style_img_recolor_opa(bike, LV_OPA_COVER, 0);
     style_no_frame(bike);
     lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -76, -28);
 
