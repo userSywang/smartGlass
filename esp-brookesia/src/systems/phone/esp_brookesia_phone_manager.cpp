@@ -387,18 +387,6 @@ bool ESP_Brookesia_PhoneManager::processGestureScreenChange(ESP_Brookesia_PhoneM
                        _flags.enable_gesture_show_mask_bottom_edge, _flags.enable_gesture_show_left_right_indicator_bar,
                        _flags.enable_gesture_show_bottom_indicator_bar);
 
-    if (_gesture == nullptr) {
-        _flags.enable_gesture_navigation = false;
-        _flags.enable_gesture_navigation_back = false;
-        _flags.enable_gesture_navigation_home = false;
-        _flags.enable_gesture_navigation_recents_app = false;
-        _flags.enable_gesture_show_mask_left_right_edge = false;
-        _flags.enable_gesture_show_mask_bottom_edge = false;
-        _flags.enable_gesture_show_left_right_indicator_bar = false;
-        _flags.enable_gesture_show_bottom_indicator_bar = false;
-        return true;
-    }
-
     if (!_flags.enable_gesture_show_left_right_indicator_bar) {
         ESP_BROOKESIA_CHECK_FALSE_RETURN(
             _gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT, false), false,
