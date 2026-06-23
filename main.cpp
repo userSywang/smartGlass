@@ -22,6 +22,7 @@
 
 static void hal_init(void);
 static void smart_glass_init(void);
+static void disable_phone_shell_chrome(ESP_Brookesia_PhoneStylesheet_t &stylesheet);
 
 int SDL_main(int argc, char *argv[])
 {
@@ -69,24 +70,19 @@ static void smart_glass_init(void)
     ESP_Brookesia_Phone *phone = new ESP_Brookesia_Phone();
     ESP_BROOKESIA_CHECK_NULL_EXIT(phone, "Create phone failed");
 
-    ESP_Brookesia_PhoneStylesheet_t *stylesheet = nullptr;
+    ESP_Brookesia_PhoneStylesheet_t stylesheet = ESP_BROOKESIA_PHONE_DEFAULT_DARK_STYLESHEET();
     if((BSP_LCD_H_RES == 1024) && (BSP_LCD_V_RES == 600)) {
-        stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_1024_600_DARK_STYLESHEET();
-        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create 1024x600 stylesheet failed");
+        stylesheet = ESP_BROOKESIA_PHONE_1024_600_DARK_STYLESHEET();
     } else if((BSP_LCD_H_RES == 1280) && (BSP_LCD_V_RES == 800)) {
-        stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_1280_800_DARK_STYLESHEET();
-        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create 1280x800 stylesheet failed");
+        stylesheet = ESP_BROOKESIA_PHONE_1280_800_DARK_STYLESHEET();
     } else if((BSP_LCD_H_RES == 800) && (BSP_LCD_V_RES == 1280)) {
-        stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_800_1280_DARK_STYLESHEET();
-        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create 800x1280 stylesheet failed");
+        stylesheet = ESP_BROOKESIA_PHONE_800_1280_DARK_STYLESHEET();
     }
+    disable_phone_shell_chrome(stylesheet);
 
-    if(stylesheet != nullptr) {
-        ESP_BROOKESIA_LOGI("Using stylesheet: %s", stylesheet->core.name);
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(stylesheet), "Add stylesheet failed");
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(stylesheet), "Activate stylesheet failed");
-        delete stylesheet;
-    }
+    ESP_BROOKESIA_LOGI("Using stylesheet: %s", stylesheet.core.name);
+    ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(stylesheet), "Add stylesheet failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(stylesheet), "Activate stylesheet failed");
 
     ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->begin(), "Begin phone failed");
 
@@ -104,6 +100,19 @@ static void smart_glass_init(void)
     ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->sendAppEvent(&event_data), "Start LensReactUI failed");
 
     ESP_BROOKESIA_LOGI("LensReactUI started as app id %d", app_id);
+}
+
+static void disable_phone_shell_chrome(ESP_Brookesia_PhoneStylesheet_t &stylesheet)
+{
+    stylesheet.home.flags.enable_status_bar = 0;
+    stylesheet.home.flags.enable_navigation_bar = 0;
+    stylesheet.home.flags.enable_recents_screen = 0;
+    stylesheet.home.flags.enable_recents_screen_flex_size = 0;
+    stylesheet.home.flags.enable_recents_screen_hide_when_no_snapshot = 0;
+    stylesheet.manager.flags.enable_gesture = 0;
+    stylesheet.manager.flags.enable_gesture_navigation_back = 0;
+    stylesheet.manager.flags.enable_recents_screen_snapshot_drag = 0;
+    stylesheet.manager.flags.enable_recents_screen_hide_when_no_snapshot = 0;
 }
 
 static void hal_init(void)
