@@ -22,6 +22,7 @@
 
 static void hal_init(void);
 static void smart_glass_init(void);
+static void keep_status_bar_without_phone_navigation(ESP_Brookesia_PhoneStylesheet_t &stylesheet);
 
 int SDL_main(int argc, char *argv[])
 {
@@ -82,6 +83,7 @@ static void smart_glass_init(void)
     }
 
     if(stylesheet != nullptr) {
+        keep_status_bar_without_phone_navigation(*stylesheet);
         ESP_BROOKESIA_LOGI("Using stylesheet: %s", stylesheet->core.name);
         ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(stylesheet), "Add stylesheet failed");
         ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(stylesheet), "Activate stylesheet failed");
@@ -104,6 +106,12 @@ static void smart_glass_init(void)
     ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->sendAppEvent(&event_data), "Start LensReactUI failed");
 
     ESP_BROOKESIA_LOGI("LensReactUI started as app id %d", app_id);
+}
+
+static void keep_status_bar_without_phone_navigation(ESP_Brookesia_PhoneStylesheet_t &stylesheet)
+{
+    stylesheet.home.flags.enable_status_bar = 1;
+    stylesheet.home.flags.enable_navigation_bar = 0;
 }
 
 static void hal_init(void)
