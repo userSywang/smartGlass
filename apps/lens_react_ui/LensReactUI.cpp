@@ -38,7 +38,7 @@ constexpr lv_color_t kPurple = LV_COLOR_MAKE(0xa7, 0x8b, 0xfa);
 constexpr lv_color_t kHudGreen = LV_COLOR_MAKE(0x31, 0xff, 0x65);
 constexpr uint8_t kBatteryPercent = 88;
 constexpr lv_coord_t kStatusBarHeight = 30;
-constexpr lv_coord_t kPageBottomSafeArea = 20;
+constexpr lv_coord_t kPageBottomSafeArea = 0;
 constexpr lv_coord_t kCompactViewMaxHeight = 360;
 constexpr lv_coord_t kCompactContentTop = 38;
 
@@ -211,8 +211,7 @@ bool fill_local_time(std::tm *time_info)
 }
 }
 
-LensReactUI::LensReactUI() :
-    ESP_Brookesia_PhoneApp("Lens React UI", nullptr, true, false, false)
+LensReactUI::LensReactUI()
 {
 }
 
@@ -223,9 +222,20 @@ bool LensReactUI::init(void)
 
 bool LensReactUI::run(void)
 {
-    const lv_area_t area = getVisualArea();
-    _width = area.x2 - area.x1 + 1;
-    _height = area.y2 - area.y1 + 1;
+    if(_root != nullptr) {
+        return true;
+    }
+
+    lv_disp_t *display = lv_disp_get_default();
+    if(display == nullptr) {
+        return false;
+    }
+
+    _width = lv_disp_get_hor_res(display);
+    _height = lv_disp_get_ver_res(display);
+    if(_width <= 0 || _height <= 0) {
+        return false;
+    }
     _selected_index = 2;
     _current_app = -1;
     _prompt_focus = 1;
@@ -236,7 +246,7 @@ bool LensReactUI::run(void)
     _root = lv_obj_create(lv_scr_act());
     set_plain(_root);
     lv_obj_set_size(_root, _width, _height);
-    lv_obj_set_pos(_root, area.x1, area.y1);
+    lv_obj_set_pos(_root, 0, 0);
     lv_obj_set_style_bg_color(_root, kBlack, 0);
     lv_obj_set_style_bg_opa(_root, LV_OPA_COVER, 0);
     lv_obj_add_flag(_root, LV_OBJ_FLAG_CLICKABLE);
@@ -298,7 +308,7 @@ bool LensReactUI::back(void)
         showHome();
         return true;
     }
-    return notifyCoreClosed();
+    return true;
 }
 
 bool LensReactUI::close(void)
@@ -355,7 +365,7 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
     lv_obj_t *rail = lv_obj_create(_home);
     set_plain(rail);
     lv_obj_set_size(rail, LV_MIN((lv_coord_t)640, width), 132);
-    lv_obj_align(rail, LV_ALIGN_BOTTOM_MID, 0, -38);
+    lv_obj_align(rail, LV_ALIGN_BOTTOM_MID, 0, -18);
     lv_obj_set_style_bg_opa(rail, LV_OPA_TRANSP, 0);
 
     _track = lv_obj_create(rail);
@@ -399,7 +409,7 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
     _dot_row = lv_obj_create(_home);
     set_plain(_dot_row);
     lv_obj_set_size(_dot_row, 132, 10);
-    lv_obj_align(_dot_row, LV_ALIGN_BOTTOM_MID, 0, -24);
+    lv_obj_align(_dot_row, LV_ALIGN_BOTTOM_MID, 0, -4);
     lv_obj_set_style_bg_opa(_dot_row, LV_OPA_TRANSP, 0);
 
     for(uint8_t i = 0; i < kAppCount; ++i) {
@@ -598,6 +608,10 @@ void LensReactUI::showHome(void)
     }
     updateTileStyles();
     updateDots();
+    lv_group_t *group = lv_group_get_default();
+    if(group && _root) {
+        lv_group_focus_obj(_root);
+    }
 }
 
 void LensReactUI::showApp(uint8_t index)
@@ -642,6 +656,10 @@ void LensReactUI::showApp(uint8_t index)
     rebuildPage();
     if(_status_bar) {
         lv_obj_move_foreground(_status_bar);
+    }
+    lv_group_t *group = lv_group_get_default();
+    if(group && _root) {
+        lv_group_focus_obj(_root);
     }
 }
 
@@ -1694,6 +1712,10 @@ void LensReactUI::onNotificationSwitchChanged(lv_event_t *event)
         app->updateNotificationBubbleLayout();
     }
     app->updateNotificationLabels();
+    lv_group_t *group = lv_group_get_default();
+    if(group && app->_root) {
+        lv_group_focus_obj(app->_root);
+    }
 }
 
 void LensReactUI::onTtsSwitchChanged(lv_event_t *event)
@@ -1705,6 +1727,10 @@ void LensReactUI::onTtsSwitchChanged(lv_event_t *event)
     }
     app->_tts_enabled = lv_obj_has_state(target, LV_STATE_CHECKED);
     app->updateNotificationLabels();
+    lv_group_t *group = lv_group_get_default();
+    if(group && app->_root) {
+        lv_group_focus_obj(app->_root);
+    }
 }
 
 void LensReactUI::onTileClicked(lv_event_t *event)

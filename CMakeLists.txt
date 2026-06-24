@@ -24,7 +24,6 @@ include_directories(${SDL2_INCLUDE_DIRS})
 
 add_subdirectory(lv_drivers EXCLUDE_FROM_ALL)
 add_subdirectory(lvgl EXCLUDE_FROM_ALL)
-add_subdirectory(esp-brookesia)
 add_subdirectory(apps/lens_react_ui)
 
 add_executable(${PROJECT_NAME}
@@ -36,7 +35,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_libraries(${PROJECT_NAME} PRIVATE
         pthread
         lens_react_ui
-        esp-brookesia
         lv_drivers
         -Wl,--whole-archive
         lvgl
@@ -47,7 +45,6 @@ else()
     target_link_libraries(${PROJECT_NAME} PRIVATE
         pthread
         lens_react_ui
-        esp-brookesia
         lv_drivers
         lvgl
         ${SDL2_STATIC_LIBRARIES}

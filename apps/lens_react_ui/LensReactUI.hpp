@@ -3,17 +3,16 @@
 #include <cstdint>
 
 #include "lvgl.h"
-#include "esp_brookesia.hpp"
 
-class LensReactUI : public ESP_Brookesia_PhoneApp {
+class LensReactUI {
 public:
     LensReactUI();
-    ~LensReactUI() override = default;
+    ~LensReactUI() = default;
 
-    bool init(void) override;
-    bool run(void) override;
-    bool back(void) override;
-    bool close(void) override;
+    bool init(void);
+    bool run(void);
+    bool back(void);
+    bool close(void);
 
 private:
     static constexpr uint8_t kAppCount = 9;

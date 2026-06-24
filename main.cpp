@@ -11,29 +11,27 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "esp_brookesia.hpp"
 #include "apps/lens_react_ui/LensReactUI.hpp"
 
 #define MONITOR_HOR_RES SDL_HOR_RES
 #define MONITOR_VER_RES SDL_VER_RES
 
-#define BSP_LCD_H_RES MONITOR_HOR_RES
-#define BSP_LCD_V_RES MONITOR_VER_RES
-
 static void hal_init(void);
-static void smart_glass_init(void);
-static void keep_status_bar_without_phone_navigation(ESP_Brookesia_PhoneStylesheet_t &stylesheet);
+static bool smart_glass_init(void);
 
 int SDL_main(int argc, char *argv[])
 {
     LV_UNUSED(argc);
     LV_UNUSED(argv);
 
-    ESP_BROOKESIA_LOGI("Starting smartGlass");
+    std::puts("Starting smartGlass");
 
     lv_init();
     hal_init();
-    smart_glass_init();
+    if(!smart_glass_init()) {
+        std::fputs("Failed to initialize smartGlass UI\n", stderr);
+        return EXIT_FAILURE;
+    }
 
     while(1) {
         lv_timer_handler();
@@ -63,55 +61,10 @@ uint32_t custom_tick_get(void)
 
 }
 
-static void smart_glass_init(void)
+static bool smart_glass_init(void)
 {
-    ESP_BROOKESIA_LOGI("Initialize Brookesia minimal phone shell");
-
-    ESP_Brookesia_Phone *phone = new ESP_Brookesia_Phone();
-    ESP_BROOKESIA_CHECK_NULL_EXIT(phone, "Create phone failed");
-
-    ESP_Brookesia_PhoneStylesheet_t *stylesheet = nullptr;
-    if((BSP_LCD_H_RES == 1024) && (BSP_LCD_V_RES == 600)) {
-        stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_1024_600_DARK_STYLESHEET();
-        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create 1024x600 stylesheet failed");
-    } else if((BSP_LCD_H_RES == 1280) && (BSP_LCD_V_RES == 800)) {
-        stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_1280_800_DARK_STYLESHEET();
-        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create 1280x800 stylesheet failed");
-    } else if((BSP_LCD_H_RES == 800) && (BSP_LCD_V_RES == 1280)) {
-        stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_800_1280_DARK_STYLESHEET();
-        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create 800x1280 stylesheet failed");
-    }
-
-    if(stylesheet != nullptr) {
-        keep_status_bar_without_phone_navigation(*stylesheet);
-        ESP_BROOKESIA_LOGI("Using stylesheet: %s", stylesheet->core.name);
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(stylesheet), "Add stylesheet failed");
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(stylesheet), "Activate stylesheet failed");
-        delete stylesheet;
-    }
-
-    ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->begin(), "Begin phone failed");
-
-    LensReactUI *lens_react_ui = new LensReactUI();
-    ESP_BROOKESIA_CHECK_NULL_EXIT(lens_react_ui, "Create LensReactUI failed");
-
-    const int app_id = phone->installApp(lens_react_ui);
-    ESP_BROOKESIA_CHECK_FALSE_EXIT(app_id >= 0, "Install LensReactUI failed");
-
-    ESP_Brookesia_CoreAppEventData_t event_data = {
-        .id = app_id,
-        .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_START,
-        .data = nullptr,
-    };
-    ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->sendAppEvent(&event_data), "Start LensReactUI failed");
-
-    ESP_BROOKESIA_LOGI("LensReactUI started as app id %d", app_id);
-}
-
-static void keep_status_bar_without_phone_navigation(ESP_Brookesia_PhoneStylesheet_t &stylesheet)
-{
-    stylesheet.home.flags.enable_status_bar = 1;
-    stylesheet.home.flags.enable_navigation_bar = 0;
+    static LensReactUI lens_react_ui;
+    return lens_react_ui.init() && lens_react_ui.run();
 }
 
 static void hal_init(void)
@@ -132,7 +85,7 @@ static void hal_init(void)
     lv_group_t *group = lv_group_create();
     lv_group_set_default(group);
 
-    ESP_BROOKESIA_LOGI("Initialize SDL display");
+    std::puts("Initialize SDL display");
     sdl_init();
 
     static lv_disp_draw_buf_t draw_buf;
@@ -149,7 +102,10 @@ static void hal_init(void)
     disp_drv.antialiasing = 1;
 
     lv_disp_t *disp = lv_disp_drv_register(&disp_drv);
-    ESP_BROOKESIA_CHECK_NULL_EXIT(disp, "Register LVGL display failed");
+    if(disp == nullptr) {
+        std::fputs("Register LVGL display failed\n", stderr);
+        std::exit(EXIT_FAILURE);
+    }
 
     mouse_drv.read_cb = sdl_mouse_read;
     keyboard_drv.read_cb = sdl_keyboard_read;
