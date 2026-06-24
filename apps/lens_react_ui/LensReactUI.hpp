@@ -16,18 +16,30 @@ public:
     bool close(void) override;
 
 private:
-    static constexpr uint8_t kAppCount = 8;
+    static constexpr uint8_t kAppCount = 9;
+    static constexpr uint8_t kNotificationAppIndex = 3;
+    static constexpr uint8_t kMaxNotificationBubbles = 4;
 
     static void onClockTimer(lv_timer_t *timer);
     static void onPromptTimer(lv_timer_t *timer);
     static void onMicTimer(lv_timer_t *timer);
+    static void onNotificationTimer(lv_timer_t *timer);
     static void onRootPressed(lv_event_t *event);
     static void onRootReleased(lv_event_t *event);
     static void onRootKey(lv_event_t *event);
     static void onTileClicked(lv_event_t *event);
     static void onAssistantClicked(lv_event_t *event);
     static void onOverlayDismissed(lv_event_t *event);
+    static void onNotificationSwitchChanged(lv_event_t *event);
+    static void onTtsSwitchChanged(lv_event_t *event);
     static void onAnimX(void *obj, int32_t value);
+    static void onAnimY(void *obj, int32_t value);
+    static void onAnimOpa(void *obj, int32_t value);
+
+    struct NotificationBubble {
+        lv_obj_t *obj = nullptr;
+        uint8_t age_seconds = 0;
+    };
 
     void createHome(lv_coord_t width, lv_coord_t height);
     void createStatusBar(lv_coord_t width, lv_coord_t height);
@@ -42,10 +54,17 @@ private:
     void updateClock(void);
     void updateDots(void);
     void clearPageContent(void);
+    void clearNotificationBubbles(void);
+    void triggerNotification(uint8_t type);
+    void addNotificationBubble(const char *source, const char *sender, const char *message, lv_color_t accent);
+    void removeNotificationBubble(uint8_t index);
+    void updateNotificationBubbleLayout(void);
+    void updateNotificationLabels(void);
 
     void createCameraPage(void);
     void createNotesPage(void);
     void createNavigationPage(void);
+    void createNotificationPage(void);
     void createMusicPage(void);
     void createPrompterPage(void);
     void createTranslatePage(void);
@@ -69,12 +88,19 @@ private:
     lv_obj_t *_battery_label = nullptr;
     lv_obj_t *_battery_fill = nullptr;
     lv_obj_t *_assistant_overlay = nullptr;
+    lv_obj_t *_notification_stack = nullptr;
+    lv_obj_t *_notification_empty_label = nullptr;
+    lv_obj_t *_notification_hint_label = nullptr;
+    lv_obj_t *_notification_state_label = nullptr;
+    lv_obj_t *_tts_state_label = nullptr;
     lv_obj_t *_prompt_lines[4] = {};
     lv_obj_t *_mic_ring = nullptr;
+    NotificationBubble _notification_bubbles[kMaxNotificationBubbles] = {};
 
     lv_timer_t *_clock_timer = nullptr;
     lv_timer_t *_prompt_timer = nullptr;
     lv_timer_t *_mic_timer = nullptr;
+    lv_timer_t *_notification_timer = nullptr;
 
     lv_coord_t _width = 0;
     lv_coord_t _height = 0;
@@ -88,4 +114,6 @@ private:
     bool _dragging = false;
     bool _suppress_click = false;
     bool _mic_expand = false;
+    bool _notifications_enabled = true;
+    bool _tts_enabled = false;
 };

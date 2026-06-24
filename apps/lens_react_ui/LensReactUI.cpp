@@ -38,7 +38,9 @@ constexpr lv_color_t kPurple = LV_COLOR_MAKE(0xa7, 0x8b, 0xfa);
 constexpr lv_color_t kHudGreen = LV_COLOR_MAKE(0x31, 0xff, 0x65);
 constexpr uint8_t kBatteryPercent = 88;
 constexpr lv_coord_t kStatusBarHeight = 30;
-constexpr lv_coord_t kPageBottomSafeArea = 0;
+constexpr lv_coord_t kPageBottomSafeArea = 20;
+constexpr lv_coord_t kCompactViewMaxHeight = 360;
+constexpr lv_coord_t kCompactContentTop = 38;
 
 struct TileDef {
     const char *id;
@@ -51,6 +53,7 @@ const TileDef kApps[] = {
     {"notes", "备忘", LV_SYMBOL_FILE, kYellow},
     {"camera", "相机", LV_SYMBOL_IMAGE, kText},
     {"nav", "导航", LV_SYMBOL_GPS, kBlue},
+    {"notify", "通知", LV_SYMBOL_ENVELOPE, kYellow},
     {"music", "音乐", LV_SYMBOL_AUDIO, kRed},
     {"prompter", "提词", LV_SYMBOL_LIST, kGreen},
     {"translate", "翻译", LV_SYMBOL_WIFI, kCyan},
@@ -162,6 +165,38 @@ void style_soft_action(lv_obj_t *obj, lv_color_t accent)
     lv_obj_set_style_shadow_opa(obj, LV_OPA_30, 0);
 }
 
+lv_obj_t *create_toggle_row(lv_obj_t *parent, lv_coord_t width, const char *title, const char *subtitle,
+                            bool checked, lv_color_t accent, lv_event_cb_t callback, void *user_data,
+                            lv_obj_t **state_label)
+{
+    lv_obj_t *row = box(parent, width, 50, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 12);
+    style_soft_row(row);
+
+    lv_obj_t *name = cjk_label(row, title, kText);
+    lv_obj_align(name, LV_ALIGN_LEFT_MID, 16, -9);
+
+    lv_obj_t *desc = cjk_label(row, subtitle, kTextFaint);
+    lv_obj_align(desc, LV_ALIGN_LEFT_MID, 16, 13);
+
+    lv_obj_t *sw = lv_switch_create(row);
+    lv_obj_set_size(sw, 46, 24);
+    lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -18, 0);
+    lv_obj_set_style_bg_color(sw, LV_COLOR_MAKE(0x3f, 0x3f, 0x46), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(sw, accent, LV_PART_INDICATOR | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(sw, kText, LV_PART_KNOB);
+    lv_obj_add_event_cb(sw, callback, LV_EVENT_VALUE_CHANGED, user_data);
+    if(checked) {
+        lv_obj_add_state(sw, LV_STATE_CHECKED);
+    }
+
+    if(state_label) {
+        *state_label = cjk_label(row, checked ? "开启" : "关闭", checked ? accent : kTextFaint);
+        lv_obj_align_to(*state_label, sw, LV_ALIGN_OUT_LEFT_MID, -10, 0);
+    }
+
+    return row;
+}
+
 bool fill_local_time(std::tm *time_info)
 {
     if(time_info == nullptr) {
@@ -239,11 +274,15 @@ bool LensReactUI::run(void)
     _clock_timer = lv_timer_create(onClockTimer, 1000, this);
     _prompt_timer = lv_timer_create(onPromptTimer, 1200, this);
     _mic_timer = lv_timer_create(onMicTimer, 650, this);
+    _notification_timer = lv_timer_create(onNotificationTimer, 1000, this);
     if(_prompt_timer) {
         lv_timer_pause(_prompt_timer);
     }
     if(_mic_timer) {
         lv_timer_pause(_mic_timer);
+    }
+    if(_notification_timer) {
+        lv_timer_pause(_notification_timer);
     }
 
     return true;
@@ -276,6 +315,11 @@ bool LensReactUI::close(void)
         lv_timer_del(_mic_timer);
         _mic_timer = nullptr;
     }
+    if(_notification_timer) {
+        lv_timer_del(_notification_timer);
+        _notification_timer = nullptr;
+    }
+    clearNotificationBubbles();
     if(_root) {
         lv_obj_del(_root);
         _root = nullptr;
@@ -292,6 +336,11 @@ bool LensReactUI::close(void)
     _battery_label = nullptr;
     _battery_fill = nullptr;
     _assistant_overlay = nullptr;
+    _notification_stack = nullptr;
+    _notification_empty_label = nullptr;
+    _notification_hint_label = nullptr;
+    _notification_state_label = nullptr;
+    _tts_state_label = nullptr;
     return true;
 }
 
@@ -306,7 +355,7 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
     lv_obj_t *rail = lv_obj_create(_home);
     set_plain(rail);
     lv_obj_set_size(rail, LV_MIN((lv_coord_t)640, width), 132);
-    lv_obj_align(rail, LV_ALIGN_BOTTOM_MID, 0, -18);
+    lv_obj_align(rail, LV_ALIGN_BOTTOM_MID, 0, -38);
     lv_obj_set_style_bg_opa(rail, LV_OPA_TRANSP, 0);
 
     _track = lv_obj_create(rail);
@@ -329,24 +378,28 @@ void LensReactUI::createHome(lv_coord_t width, lv_coord_t height)
         lv_obj_t *shell = box(tile, 88, 88, kPanelSoft, LV_OPA_TRANSP, 14);
         lv_obj_align(shell, LV_ALIGN_TOP_MID, 0, 0);
         lv_obj_set_style_border_width(shell, 2, 0);
+        lv_obj_clear_flag(shell, LV_OBJ_FLAG_CLICKABLE);
 
         lv_obj_t *icon_bg = box(shell, 50, 50, kPanel, LV_OPA_COVER, 8);
         lv_obj_center(icon_bg);
+        lv_obj_clear_flag(icon_bg, LV_OBJ_FLAG_CLICKABLE);
 
         _tile_icons[i] = label(icon_bg, kApps[i].symbol, &lv_font_montserrat_28, kApps[i].color);
         lv_obj_center(_tile_icons[i]);
+        lv_obj_clear_flag(_tile_icons[i], LV_OBJ_FLAG_CLICKABLE);
 
         _tile_names[i] = cjk_label(tile, kApps[i].name, kText);
         lv_obj_set_width(_tile_names[i], 104);
         lv_label_set_long_mode(_tile_names[i], LV_LABEL_LONG_DOT);
         lv_obj_set_style_text_align(_tile_names[i], LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_align(_tile_names[i], LV_ALIGN_TOP_MID, 0, 94);
+        lv_obj_clear_flag(_tile_names[i], LV_OBJ_FLAG_CLICKABLE);
     }
 
     _dot_row = lv_obj_create(_home);
     set_plain(_dot_row);
-    lv_obj_set_size(_dot_row, 116, 10);
-    lv_obj_align(_dot_row, LV_ALIGN_BOTTOM_MID, 0, -4);
+    lv_obj_set_size(_dot_row, 132, 10);
+    lv_obj_align(_dot_row, LV_ALIGN_BOTTOM_MID, 0, -24);
     lv_obj_set_style_bg_opa(_dot_row, LV_OPA_TRANSP, 0);
 
     for(uint8_t i = 0; i < kAppCount; ++i) {
@@ -606,18 +659,21 @@ void LensReactUI::rebuildPage(void)
         createNavigationPage();
         break;
     case 3:
-        createMusicPage();
+        createNotificationPage();
         break;
     case 4:
-        createPrompterPage();
+        createMusicPage();
         break;
     case 5:
-        createTranslatePage();
+        createPrompterPage();
         break;
     case 6:
-        createSettingsPage();
+        createTranslatePage();
         break;
     case 7:
+        createSettingsPage();
+        break;
+    case 8:
         createAssistantPage();
         break;
     default:
@@ -627,6 +683,7 @@ void LensReactUI::rebuildPage(void)
 
 void LensReactUI::clearPageContent(void)
 {
+    clearNotificationBubbles();
     if(_page_content) {
         lv_obj_clean(_page_content);
     }
@@ -640,21 +697,31 @@ void LensReactUI::clearPageContent(void)
     if(_mic_timer) {
         lv_timer_pause(_mic_timer);
     }
+    if(_notification_timer) {
+        lv_timer_pause(_notification_timer);
+    }
+    _notification_stack = nullptr;
+    _notification_empty_label = nullptr;
+    _notification_hint_label = nullptr;
+    _notification_state_label = nullptr;
+    _tts_state_label = nullptr;
 }
 
 void LensReactUI::createCameraPage(void)
 {
-    if(_view_height <= 260) {
-        lv_obj_t *frame = box(_page_content, _view_width - 44, _view_height - 58, kBlack, LV_OPA_COVER, 0);
-        lv_obj_align(frame, LV_ALIGN_CENTER, 0, -2);
+    if(_view_height <= kCompactViewMaxHeight) {
+        const lv_coord_t frame_width = _view_width - 40;
+        const lv_coord_t frame_height = lv_obj_get_height(_page_content) - kCompactContentTop - 18;
+        lv_obj_t *frame = box(_page_content, frame_width, frame_height, kBlack, LV_OPA_COVER, 0);
+        lv_obj_align(frame, LV_ALIGN_TOP_MID, 0, kCompactContentTop);
 
         add_camera_corner(frame, LV_ALIGN_TOP_LEFT, false, false, 24, 2, 0, kText, LV_OPA_COVER);
         add_camera_corner(frame, LV_ALIGN_TOP_RIGHT, true, false, 24, 2, 0, kText, LV_OPA_COVER);
         add_camera_corner(frame, LV_ALIGN_BOTTOM_LEFT, false, true, 24, 2, 0, kText, LV_OPA_COVER);
         add_camera_corner(frame, LV_ALIGN_BOTTOM_RIGHT, true, true, 24, 2, 0, kText, LV_OPA_COVER);
 
-        lv_obj_t *hint = label(_page_content, "Tap photo   Double video", &lv_font_montserrat_14, kText);
-        lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -78);
+        lv_obj_t *hint = label(frame, "Tap photo   Double video", &lv_font_montserrat_14, kText);
+        lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -14);
 
         return;
     }
@@ -684,16 +751,25 @@ void LensReactUI::createCameraPage(void)
 
 void LensReactUI::createNotesPage(void)
 {
-    if(_view_height <= 260) {
+    if(_view_height <= kCompactViewMaxHeight) {
         lv_obj_t *title = cjk_label(_page_content, "备忘", kText);
-        lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 22);
+        lv_obj_align(title, LV_ALIGN_TOP_LEFT, 24, kCompactContentTop);
+        lv_obj_t *plus = box(_page_content, 30, 30, LV_COLOR_MAKE(0x1b, 0x19, 0x12), LV_OPA_COVER, 8);
+        lv_obj_align(plus, LV_ALIGN_TOP_RIGHT, -24, kCompactContentTop - 6);
+        style_soft_action(plus, kYellow);
+        lv_obj_t *plus_icon = label(plus, LV_SYMBOL_PLUS, &lv_font_montserrat_16, kYellow);
+        lv_obj_center(plus_icon);
+
         const char *items[] = {"Team sync at 3 PM", "Buy coffee beans", "UI interaction notes"};
         for(uint8_t i = 0; i < 3; ++i) {
-            lv_obj_t *row = box(_page_content, _view_width - 120, 30, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 10);
-            lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 62 + i * 36);
+            lv_obj_t *row = box(_page_content, _view_width - 48, 48, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 10);
+            lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 70 + i * 56);
             style_soft_row(row);
             lv_obj_t *text = label(row, items[i], &lv_font_montserrat_14, kText);
             lv_obj_align(text, LV_ALIGN_LEFT_MID, 16, 0);
+            lv_obj_t *time = label(row, i == 0 ? "12:30" : (i == 1 ? "Yesterday" : "Monday"),
+                                   &lv_font_montserrat_12, kTextFaint);
+            lv_obj_align(time, LV_ALIGN_RIGHT_MID, -14, 0);
         }
         return;
     }
@@ -743,7 +819,7 @@ void LensReactUI::createNotesPage(void)
 
 void LensReactUI::createNavigationPage(void)
 {
-    if(_view_height <= 360) {
+    if(_view_height <= kCompactViewMaxHeight) {
         static const lv_point_t arrow_shaft[] = {{12, 40}, {12, 4}};
         static const lv_point_t arrow_head[] = {{12, 4}, {2, 15}, {12, 4}, {22, 15}};
 
@@ -823,22 +899,347 @@ void LensReactUI::createNavigationPage(void)
     lv_obj_align(flag, LV_ALIGN_BOTTOM_RIGHT, -34, -12);
 }
 
+void LensReactUI::createNotificationPage(void)
+{
+    const bool compact = _view_height <= kCompactViewMaxHeight;
+    if(compact) {
+        const bool narrow = _view_width < 560;
+        const lv_coord_t side_margin = narrow ? 24 : 24;
+        const lv_coord_t stack_width = narrow ? (_view_width - side_margin * 2) : 352;
+        const lv_coord_t stack_height = narrow ? (lv_obj_get_height(_page_content) - 164) : 122;
+        const lv_coord_t control_width = narrow ? (_view_width - side_margin * 2) : 206;
+        const lv_coord_t control_height = narrow ? 72 : 82;
+
+        lv_obj_t *title = cjk_label(_page_content, "通知", kYellow);
+        lv_obj_align(title, LV_ALIGN_TOP_LEFT, side_margin, 38);
+
+        _notification_hint_label = cjk_label(_page_content, "1微信  2短信  3钉钉", kTextDim);
+        lv_obj_align(_notification_hint_label, LV_ALIGN_TOP_RIGHT, -side_margin, 38);
+
+        _notification_stack = lv_obj_create(_page_content);
+        set_plain(_notification_stack);
+        lv_obj_set_size(_notification_stack, stack_width, stack_height);
+        lv_obj_align(_notification_stack, LV_ALIGN_TOP_LEFT, side_margin, 66);
+        lv_obj_set_style_bg_opa(_notification_stack, LV_OPA_TRANSP, 0);
+
+        _notification_empty_label = cjk_label(_notification_stack, "等待测试通知", kTextFaint);
+        lv_obj_align(_notification_empty_label, LV_ALIGN_TOP_LEFT, 0, 20);
+
+        lv_obj_t *control = box(_page_content, control_width, control_height, LV_COLOR_MAKE(0x12, 0x12, 0x16), LV_OPA_80, 12);
+        if(narrow) {
+            lv_obj_align(control, LV_ALIGN_BOTTOM_MID, 0, -14);
+        } else {
+            lv_obj_align(control, LV_ALIGN_TOP_RIGHT, -side_margin, 70);
+        }
+        lv_obj_set_style_border_width(control, 1, 0);
+        lv_obj_set_style_border_color(control, LV_COLOR_MAKE(0x3a, 0x3a, 0x40), 0);
+        lv_obj_set_style_border_opa(control, LV_OPA_60, 0);
+
+        const lv_coord_t column_width = control_width / 2;
+        lv_obj_t *notify_text = cjk_label(control, "通知提醒", kText);
+        lv_obj_align(notify_text, LV_ALIGN_TOP_LEFT, 14, narrow ? 8 : 10);
+        lv_obj_t *notify_switch = lv_switch_create(control);
+        lv_obj_set_size(notify_switch, 42, 22);
+        if(narrow) {
+            lv_obj_set_pos(notify_switch, column_width - 56, 8);
+        } else {
+            lv_obj_align(notify_switch, LV_ALIGN_TOP_RIGHT, -12, 8);
+        }
+        lv_obj_set_style_bg_color(notify_switch, kYellow, LV_PART_INDICATOR | LV_STATE_CHECKED);
+        lv_obj_set_style_bg_color(notify_switch, kText, LV_PART_KNOB);
+        lv_obj_add_event_cb(notify_switch, onNotificationSwitchChanged, LV_EVENT_VALUE_CHANGED, this);
+        if(_notifications_enabled) {
+            lv_obj_add_state(notify_switch, LV_STATE_CHECKED);
+        }
+
+        lv_obj_t *tts_text = cjk_label(control, "文本转语音", kTextDim);
+        lv_obj_align(tts_text, LV_ALIGN_TOP_LEFT, narrow ? (column_width + 14) : 14, narrow ? 8 : 46);
+        lv_obj_t *tts_switch = lv_switch_create(control);
+        lv_obj_set_size(tts_switch, 42, 22);
+        lv_obj_align(tts_switch, LV_ALIGN_TOP_RIGHT, -12, narrow ? 8 : 44);
+        lv_obj_set_style_bg_color(tts_switch, kCyan, LV_PART_INDICATOR | LV_STATE_CHECKED);
+        lv_obj_set_style_bg_color(tts_switch, kText, LV_PART_KNOB);
+        lv_obj_add_event_cb(tts_switch, onTtsSwitchChanged, LV_EVENT_VALUE_CHANGED, this);
+        if(_tts_enabled) {
+            lv_obj_add_state(tts_switch, LV_STATE_CHECKED);
+        }
+
+        _notification_state_label = cjk_label(control, _notifications_enabled ? "开" : "关",
+                                             _notifications_enabled ? kYellow : kTextFaint);
+        _tts_state_label = cjk_label(control, _tts_enabled ? "开" : "关", _tts_enabled ? kCyan : kTextFaint);
+        if(narrow) {
+            lv_obj_align(_notification_state_label, LV_ALIGN_TOP_LEFT, 14, 39);
+            lv_obj_align(_tts_state_label, LV_ALIGN_TOP_LEFT, column_width + 14, 39);
+            lv_obj_t *divider = box(control, 1, control_height - 20, LV_COLOR_MAKE(0x3a, 0x3a, 0x40), LV_OPA_60, 0);
+            lv_obj_align(divider, LV_ALIGN_CENTER, 0, 0);
+        } else {
+            lv_obj_align_to(_notification_state_label, notify_switch, LV_ALIGN_OUT_LEFT_MID, -8, 0);
+            lv_obj_align_to(_tts_state_label, tts_switch, LV_ALIGN_OUT_LEFT_MID, -8, 0);
+        }
+
+        updateNotificationLabels();
+        updateNotificationBubbleLayout();
+        if(_notification_timer) {
+            lv_timer_resume(_notification_timer);
+        }
+        return;
+    }
+
+    const lv_coord_t margin = 48;
+    const lv_coord_t top = 128;
+    const lv_coord_t stack_width = 320;
+    const lv_coord_t stack_height = _view_height - 164;
+    const lv_coord_t panel_width = _width - stack_width - 3 * margin;
+    const lv_coord_t panel_height = 246;
+
+    lv_obj_t *title = cjk_label(_page_content, "通知提醒", kYellow);
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, margin, 82);
+
+    _notification_stack = lv_obj_create(_page_content);
+    set_plain(_notification_stack);
+    lv_obj_set_size(_notification_stack, stack_width, stack_height);
+    lv_obj_align(_notification_stack, LV_ALIGN_TOP_LEFT, margin, top);
+    lv_obj_set_style_bg_opa(_notification_stack, LV_OPA_TRANSP, 0);
+
+    _notification_empty_label = cjk_label(_notification_stack, "按 1/2/3 测试通知冒泡", kTextFaint);
+    lv_obj_align(_notification_empty_label, LV_ALIGN_TOP_LEFT, 0, compact ? 18 : 28);
+
+    lv_obj_t *panel = box(_page_content, panel_width, panel_height, LV_COLOR_MAKE(0x13, 0x13, 0x17), LV_OPA_COVER, 14);
+    lv_obj_align(panel, LV_ALIGN_TOP_RIGHT, -margin, top);
+    lv_obj_set_style_border_width(panel, 1, 0);
+    lv_obj_set_style_border_color(panel, LV_COLOR_MAKE(0x45, 0x46, 0x4d), 0);
+    lv_obj_set_style_border_opa(panel, LV_OPA_60, 0);
+
+    lv_obj_t *panel_title = cjk_label(panel, "测试控制", kText);
+    lv_obj_align(panel_title, LV_ALIGN_TOP_LEFT, 16, 14);
+
+    lv_obj_t *row_notify = create_toggle_row(panel, panel_width - 28, "通知提醒", "允许左侧弹窗显示",
+                                             _notifications_enabled, kYellow, onNotificationSwitchChanged, this,
+                                             &_notification_state_label);
+    lv_obj_set_pos(row_notify, 14, compact ? 42 : 54);
+
+    lv_obj_t *row_tts = create_toggle_row(panel, panel_width - 28, "文本转语音", "通知到达时播报摘要",
+                                          _tts_enabled, kCyan, onTtsSwitchChanged, this, &_tts_state_label);
+    lv_obj_set_pos(row_tts, 14, compact ? 96 : 118);
+
+    _notification_hint_label = cjk_label(panel, "1 微信   2 短信   3 钉钉", kTextDim);
+    lv_obj_align(_notification_hint_label, LV_ALIGN_BOTTOM_LEFT, 16, compact ? -10 : -22);
+
+    if(!compact) {
+        lv_obj_t *note = cjk_label(panel, "最新消息固定在顶部，旧消息向下推，10 秒后自动消失。", kTextFaint);
+        lv_obj_set_width(note, panel_width - 32);
+        lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
+        lv_obj_align(note, LV_ALIGN_BOTTOM_LEFT, 16, -52);
+    }
+
+    updateNotificationLabels();
+    updateNotificationBubbleLayout();
+    if(_notification_timer) {
+        lv_timer_resume(_notification_timer);
+    }
+}
+
+void LensReactUI::clearNotificationBubbles(void)
+{
+    for(auto &bubble : _notification_bubbles) {
+        if(bubble.obj) {
+            lv_obj_del(bubble.obj);
+            bubble.obj = nullptr;
+        }
+        bubble.age_seconds = 0;
+    }
+}
+
+void LensReactUI::triggerNotification(uint8_t type)
+{
+    struct NotificationSample {
+        const char *source;
+        const char *sender;
+        const char *message;
+        lv_color_t accent;
+    };
+    const NotificationSample samples[] = {
+        {"微信", "产品群", "王工：通知提醒测试已发送。", kGreen},
+        {"短信", "中国移动", "验证码 482916，5 分钟内有效。", kBlue},
+        {"钉钉", "项目会议", "15:30 评审会即将开始。", kCyan},
+    };
+
+    if(type >= (sizeof(samples) / sizeof(samples[0]))) {
+        return;
+    }
+    if(!_notifications_enabled) {
+        if(_notification_hint_label) {
+            lv_label_set_text(_notification_hint_label, "通知提醒已关闭，打开 switch 后再测试");
+            lv_obj_set_style_text_color(_notification_hint_label, kRed, 0);
+        }
+        return;
+    }
+
+    addNotificationBubble(samples[type].source, samples[type].sender, samples[type].message, samples[type].accent);
+    if(_notification_hint_label) {
+        lv_label_set_text(_notification_hint_label, _tts_enabled ? "已显示并播报摘要" : "已显示通知冒泡");
+        lv_obj_set_style_text_color(_notification_hint_label, samples[type].accent, 0);
+    }
+}
+
+void LensReactUI::addNotificationBubble(const char *source, const char *sender, const char *message, lv_color_t accent)
+{
+    if(_notification_stack == nullptr) {
+        return;
+    }
+
+    if(_notification_bubbles[kMaxNotificationBubbles - 1].obj) {
+        lv_obj_del(_notification_bubbles[kMaxNotificationBubbles - 1].obj);
+    }
+    for(int8_t i = kMaxNotificationBubbles - 1; i > 0; --i) {
+        _notification_bubbles[i] = _notification_bubbles[i - 1];
+    }
+    _notification_bubbles[0] = {};
+
+    const bool compact = _view_height <= kCompactViewMaxHeight;
+    const lv_coord_t bubble_width = lv_obj_get_width(_notification_stack);
+    const lv_coord_t bubble_height = compact ? 46 : 70;
+    lv_obj_t *bubble = box(_notification_stack, bubble_width, bubble_height,
+                           LV_COLOR_MAKE(0x18, 0x18, 0x1c), LV_OPA_COVER, compact ? 12 : 14);
+    lv_obj_set_style_border_width(bubble, 1, 0);
+    lv_obj_set_style_border_color(bubble, accent, 0);
+    lv_obj_set_style_border_opa(bubble, LV_OPA_70, 0);
+    lv_obj_set_style_shadow_width(bubble, compact ? 8 : 12, 0);
+    lv_obj_set_style_shadow_color(bubble, kBlack, 0);
+    lv_obj_set_style_shadow_opa(bubble, LV_OPA_40, 0);
+
+    lv_obj_t *badge = box(bubble, compact ? 34 : 42, compact ? 22 : 26, accent, LV_OPA_20, 8);
+    lv_obj_align(badge, LV_ALIGN_TOP_LEFT, compact ? 8 : 12, compact ? 7 : 10);
+    lv_obj_set_style_border_width(badge, 1, 0);
+    lv_obj_set_style_border_color(badge, accent, 0);
+    lv_obj_t *badge_text = cjk_label(badge, source, accent);
+    lv_obj_center(badge_text);
+
+    lv_obj_t *sender_label = cjk_label(bubble, sender, kText);
+    lv_obj_align(sender_label, LV_ALIGN_TOP_LEFT, compact ? 50 : 64, compact ? 8 : 12);
+
+    lv_obj_t *message_label = cjk_label(bubble, message, kTextDim);
+    lv_obj_set_width(message_label, bubble_width - (compact ? 66 : 84));
+    lv_label_set_long_mode(message_label, LV_LABEL_LONG_DOT);
+    lv_obj_align(message_label, LV_ALIGN_TOP_LEFT, compact ? 50 : 64, compact ? 27 : 36);
+
+    if(!compact) {
+        lv_obj_t *tts = cjk_label(bubble, _tts_enabled ? "TTS 已播报" : "仅镜片显示", _tts_enabled ? kCyan : kTextFaint);
+        lv_obj_align(tts, LV_ALIGN_TOP_RIGHT, -14, 12);
+    }
+
+    _notification_bubbles[0].obj = bubble;
+    _notification_bubbles[0].age_seconds = 0;
+    updateNotificationBubbleLayout();
+
+    lv_obj_set_x(bubble, compact ? -18 : -28);
+    lv_obj_set_style_opa(bubble, LV_OPA_TRANSP, 0);
+
+    lv_anim_t slide;
+    lv_anim_init(&slide);
+    lv_anim_set_var(&slide, bubble);
+    lv_anim_set_values(&slide, lv_obj_get_x(bubble), 0);
+    lv_anim_set_time(&slide, 180);
+    lv_anim_set_path_cb(&slide, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&slide, onAnimX);
+    lv_anim_start(&slide);
+
+    lv_anim_t fade;
+    lv_anim_init(&fade);
+    lv_anim_set_var(&fade, bubble);
+    lv_anim_set_values(&fade, LV_OPA_TRANSP, LV_OPA_COVER);
+    lv_anim_set_time(&fade, 140);
+    lv_anim_set_exec_cb(&fade, onAnimOpa);
+    lv_anim_start(&fade);
+}
+
+void LensReactUI::removeNotificationBubble(uint8_t index)
+{
+    if(index >= kMaxNotificationBubbles || _notification_bubbles[index].obj == nullptr) {
+        return;
+    }
+    lv_obj_del(_notification_bubbles[index].obj);
+    for(uint8_t i = index; i + 1 < kMaxNotificationBubbles; ++i) {
+        _notification_bubbles[i] = _notification_bubbles[i + 1];
+    }
+    _notification_bubbles[kMaxNotificationBubbles - 1] = {};
+    updateNotificationBubbleLayout();
+}
+
+void LensReactUI::updateNotificationBubbleLayout(void)
+{
+    const bool compact = _view_height <= kCompactViewMaxHeight;
+    const lv_coord_t bubble_height = compact ? 46 : 70;
+    const lv_coord_t gap = compact ? 7 : 10;
+    bool has_bubbles = false;
+
+    for(uint8_t i = 0; i < kMaxNotificationBubbles; ++i) {
+        lv_obj_t *bubble = _notification_bubbles[i].obj;
+        if(bubble == nullptr) {
+            continue;
+        }
+        has_bubbles = true;
+        const lv_coord_t target_y = i * (bubble_height + gap);
+        if(lv_obj_get_y(bubble) != target_y) {
+            lv_anim_t move;
+            lv_anim_init(&move);
+            lv_anim_set_var(&move, bubble);
+            lv_anim_set_values(&move, lv_obj_get_y(bubble), target_y);
+            lv_anim_set_time(&move, 150);
+            lv_anim_set_path_cb(&move, lv_anim_path_ease_out);
+            lv_anim_set_exec_cb(&move, onAnimY);
+            lv_anim_start(&move);
+        }
+        lv_obj_set_x(bubble, 0);
+        lv_obj_set_style_opa(bubble, i == 0 ? LV_OPA_COVER : LV_OPA_80, 0);
+    }
+
+    if(_notification_empty_label) {
+        if(has_bubbles) {
+            lv_obj_add_flag(_notification_empty_label, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_clear_flag(_notification_empty_label, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+}
+
+void LensReactUI::updateNotificationLabels(void)
+{
+    const bool compact = _view_height <= kCompactViewMaxHeight;
+    if(_notification_state_label) {
+        lv_label_set_text(_notification_state_label, _notifications_enabled ? (compact ? "开" : "开启") : (compact ? "关" : "关闭"));
+        lv_obj_set_style_text_color(_notification_state_label, _notifications_enabled ? kYellow : kTextFaint, 0);
+    }
+    if(_tts_state_label) {
+        lv_label_set_text(_tts_state_label, _tts_enabled ? (compact ? "开" : "开启") : (compact ? "关" : "关闭"));
+        lv_obj_set_style_text_color(_tts_state_label, _tts_enabled ? kCyan : kTextFaint, 0);
+    }
+    if(_notification_hint_label) {
+        lv_label_set_text(_notification_hint_label, "1 微信   2 短信   3 钉钉");
+        lv_obj_set_style_text_color(_notification_hint_label, kTextDim, 0);
+    }
+}
+
 void LensReactUI::createMusicPage(void)
 {
-    if(_view_height <= 260) {
-        lv_obj_t *cover = box(_page_content, 82, 82, kRed, LV_OPA_COVER, 14);
-        lv_obj_align(cover, LV_ALIGN_CENTER, -118, 0);
+    if(_view_height <= kCompactViewMaxHeight) {
+        lv_obj_t *cover = box(_page_content, 104, 104, kRed, LV_OPA_COVER, 14);
+        lv_obj_align(cover, LV_ALIGN_LEFT_MID, 40, 12);
         lv_obj_set_style_bg_grad_color(cover, kOrange, 0);
         lv_obj_set_style_bg_grad_dir(cover, LV_GRAD_DIR_VER, 0);
         lv_obj_t *music = label(cover, LV_SYMBOL_AUDIO, &lv_font_montserrat_34, LV_COLOR_MAKE(0xff, 0xdf, 0xdf));
         lv_obj_center(music);
 
         lv_obj_t *song = label(_page_content, "Music Test", &lv_font_montserrat_24, kText);
-        lv_obj_align(song, LV_ALIGN_CENTER, 70, -28);
+        lv_obj_align(song, LV_ALIGN_LEFT_MID, 178, -32);
         lv_obj_t *artist = label(_page_content, "Stellar Ocean", &lv_font_montserrat_16, kRed);
-        lv_obj_align(artist, LV_ALIGN_CENTER, 70, 4);
-        lv_obj_t *controls = label(_page_content, LV_SYMBOL_PREV "   " LV_SYMBOL_PLAY "   " LV_SYMBOL_NEXT, &lv_font_montserrat_24, kTextDim);
-        lv_obj_align(controls, LV_ALIGN_CENTER, 70, 40);
+        lv_obj_align(artist, LV_ALIGN_LEFT_MID, 178, 2);
+
+        lv_obj_t *controls = box(_page_content, 226, 50, kPanel, LV_OPA_COVER, 12);
+        lv_obj_align(controls, LV_ALIGN_LEFT_MID, 170, 52);
+        lv_obj_t *control_icons = label(controls, LV_SYMBOL_PREV "    " LV_SYMBOL_PLAY "    " LV_SYMBOL_NEXT,
+                                        &lv_font_montserrat_24, kText);
+        lv_obj_center(control_icons);
         return;
     }
 
@@ -869,14 +1270,19 @@ void LensReactUI::createMusicPage(void)
 
 void LensReactUI::createPrompterPage(void)
 {
-    if(_view_height <= 260) {
-        lv_obj_t *focus = box(_page_content, _view_width - 160, 1, kGreen, LV_OPA_30, 0);
+    if(_view_height <= kCompactViewMaxHeight) {
+        lv_obj_t *focus = box(_page_content, _view_width - 48, 38, kGreen, LV_OPA_10, 8);
         lv_obj_align(focus, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_border_width(focus, 1, 0);
+        lv_obj_set_style_border_color(focus, kGreen, 0);
+        lv_obj_set_style_border_opa(focus, LV_OPA_30, 0);
         const char *lines[] = {"Good morning everyone.", "Welcome to the live demo", "of our AI smart glasses", "interaction prototype."};
         for(uint8_t i = 0; i < 4; ++i) {
             _prompt_lines[i] = label(_page_content, lines[i], i == 1 ? &lv_font_montserrat_24 : &lv_font_montserrat_16,
                                      i == 1 ? kGreen : kTextDim);
-            lv_obj_align(_prompt_lines[i], LV_ALIGN_CENTER, 0, -50 + i * 30);
+            lv_obj_set_width(_prompt_lines[i], _view_width - 64);
+            lv_obj_set_style_text_align(_prompt_lines[i], LV_TEXT_ALIGN_CENTER, 0);
+            lv_obj_align(_prompt_lines[i], LV_ALIGN_CENTER, 0, -58 + i * 38);
         }
         if(_prompt_timer) {
             lv_timer_resume(_prompt_timer);
@@ -906,20 +1312,31 @@ void LensReactUI::createPrompterPage(void)
 
 void LensReactUI::createTranslatePage(void)
 {
-    if(_view_height <= 260) {
-        lv_obj_t *top = box(_page_content, _view_width - 130, 58, kBlack, LV_OPA_COVER, 8);
-        lv_obj_align(top, LV_ALIGN_TOP_MID, 0, 32);
+    if(_view_height <= kCompactViewMaxHeight) {
+        const lv_coord_t panel_width = _view_width - 48;
+        lv_obj_t *top = box(_page_content, panel_width, 82, kBlack, LV_OPA_COVER, 8);
+        lv_obj_align(top, LV_ALIGN_TOP_MID, 0, kCompactContentTop);
         lv_obj_set_style_border_width(top, 1, 0);
         lv_obj_set_style_border_color(top, kPanel, 0);
         lv_obj_t *src = label(top, "\"Is it eye tracking or touch?\"", &lv_font_montserrat_16, kTextDim);
         lv_obj_center(src);
 
-        lv_obj_t *bottom = box(_page_content, _view_width - 130, 58, LV_COLOR_MAKE(0x09, 0x09, 0x0b), LV_OPA_COVER, 8);
+        lv_obj_t *bottom = box(_page_content, panel_width, 96, LV_COLOR_MAKE(0x09, 0x09, 0x0b), LV_OPA_COVER, 8);
         lv_obj_align(bottom, LV_ALIGN_BOTTOM_MID, 0, -24);
         lv_obj_set_style_border_width(bottom, 1, 0);
         lv_obj_set_style_border_color(bottom, kCyan, 0);
         lv_obj_t *out = label(bottom, "Translate Test: English output", &lv_font_montserrat_16, kCyan);
         lv_obj_center(out);
+
+        _mic_ring = box(_page_content, 42, 42, kCyan, LV_OPA_20, LV_RADIUS_CIRCLE);
+        lv_obj_align(_mic_ring, LV_ALIGN_CENTER, 0, 1);
+        lv_obj_set_style_border_width(_mic_ring, 1, 0);
+        lv_obj_set_style_border_color(_mic_ring, kCyan, 0);
+        lv_obj_t *mic = label(_mic_ring, LV_SYMBOL_AUDIO, &lv_font_montserrat_16, kCyan);
+        lv_obj_center(mic);
+        if(_mic_timer) {
+            lv_timer_resume(_mic_timer);
+        }
         return;
     }
 
@@ -968,17 +1385,21 @@ void LensReactUI::createTranslatePage(void)
 
 void LensReactUI::createSettingsPage(void)
 {
-    if(_view_height <= 260) {
+    if(_view_height <= kCompactViewMaxHeight) {
         lv_obj_t *title = cjk_label(_page_content, "设置", kText);
-        lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 22);
+        lv_obj_align(title, LV_ALIGN_TOP_LEFT, 24, kCompactContentTop);
 
-        const char *items[] = {"亮度 自动", "中文字体 已启用", "小智唤醒 全局可用"};
-        for(uint8_t i = 0; i < 3; ++i) {
-            lv_obj_t *row = box(_page_content, _view_width - 140, 30, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 10);
-            lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 60 + i * 36);
+        const char *names[] = {"显示亮度", "交互方式", "中文字体", "小智唤醒"};
+        const char *values[] = {"自动 72%", "触控 + 键盘", "已启用", "全局可用"};
+        const lv_color_t colors[] = {kYellow, kBlue, kGreen, kPurple};
+        for(uint8_t i = 0; i < 4; ++i) {
+            lv_obj_t *row = box(_page_content, _view_width - 48, 46, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 10);
+            lv_obj_align(row, LV_ALIGN_TOP_MID, 0, 68 + i * 52);
             style_soft_row(row);
-            lv_obj_t *text = cjk_label(row, items[i], i == 2 ? kPurple : kText);
-            lv_obj_align(text, LV_ALIGN_LEFT_MID, 16, 0);
+            lv_obj_t *name = cjk_label(row, names[i], kText);
+            lv_obj_align(name, LV_ALIGN_LEFT_MID, 16, 0);
+            lv_obj_t *value = cjk_label(row, values[i], colors[i]);
+            lv_obj_align(value, LV_ALIGN_RIGHT_MID, -16, 0);
         }
         return;
     }
@@ -1020,10 +1441,11 @@ void LensReactUI::createSettingsPage(void)
 
 void LensReactUI::createAssistantPage(void)
 {
-    const lv_coord_t card_width = _view_height <= 260 ? (_view_width - 84) : (_width - 140);
-    const lv_coord_t card_height = _view_height <= 260 ? 118 : 270;
+    const bool compact = _view_height <= kCompactViewMaxHeight;
+    const lv_coord_t card_width = compact ? (_view_width - 48) : (_view_width - 140);
+    const lv_coord_t card_height = compact ? 196 : 270;
     lv_obj_t *card = box(_page_content, card_width, card_height, LV_COLOR_MAKE(0x10, 0x0f, 0x18), LV_OPA_COVER, 18);
-    lv_obj_align(card, LV_ALIGN_CENTER, 0, _view_height <= 260 ? -2 : -28);
+    lv_obj_align(card, LV_ALIGN_CENTER, 0, compact ? 10 : -28);
     lv_obj_set_style_border_width(card, 1, 0);
     lv_obj_set_style_border_color(card, kPurple, 0);
     lv_obj_set_style_border_opa(card, LV_OPA_50, 0);
@@ -1034,7 +1456,7 @@ void LensReactUI::createAssistantPage(void)
     lv_obj_t *prompt = cjk_label(card, "你可以问：导航到会议室，翻译这句话，记录灵感。", kText);
     lv_obj_set_width(prompt, card_width - 36);
     lv_label_set_long_mode(prompt, LV_LABEL_LONG_WRAP);
-    lv_obj_align(prompt, LV_ALIGN_TOP_LEFT, 18, _view_height <= 260 ? 46 : 62);
+    lv_obj_align(prompt, LV_ALIGN_TOP_LEFT, 18, compact ? 54 : 62);
 
     lv_obj_t *answer = cjk_label(card, "示例回复：已准备好，我会在任何页面响应你的呼出。", kTextDim);
     lv_obj_set_width(answer, card_width - 36);
@@ -1054,19 +1476,20 @@ void LensReactUI::showAssistantOverlay(void)
     lv_obj_add_flag(_assistant_overlay, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(_assistant_overlay, onOverlayDismissed, LV_EVENT_CLICKED, this);
 
-    lv_obj_t *panel = box(_assistant_overlay, LV_MIN((lv_coord_t)520, (lv_coord_t)(_view_width - 54)),
-                          LV_MIN((lv_coord_t)150, (lv_coord_t)(_view_height - 32)),
+    const bool compact = _view_height <= kCompactViewMaxHeight;
+    lv_obj_t *panel = box(_assistant_overlay, LV_MIN((lv_coord_t)520, (lv_coord_t)(_view_width - 48)),
+                          LV_MIN((lv_coord_t)170, (lv_coord_t)(_view_height - 64)),
                           LV_COLOR_MAKE(0x10, 0x0f, 0x18), LV_OPA_COVER, 18);
-    lv_obj_center(panel);
+    lv_obj_align(panel, LV_ALIGN_CENTER, 0, compact ? 10 : 0);
     lv_obj_set_style_border_width(panel, 1, 0);
     lv_obj_set_style_border_color(panel, kPurple, 0);
 
     lv_obj_t *title = cjk_label(panel, "小智正在聆听", kPurple);
-    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 20, 18);
+    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 20, compact ? 16 : 18);
     lv_obj_t *body = cjk_label(panel, "全局呼出成功。试试说：打开设置、开始翻译、记录会议重点。", kText);
     lv_obj_set_width(body, lv_obj_get_width(panel) - 40);
     lv_label_set_long_mode(body, LV_LABEL_LONG_WRAP);
-    lv_obj_align(body, LV_ALIGN_TOP_LEFT, 20, 54);
+    lv_obj_align(body, LV_ALIGN_TOP_LEFT, 20, compact ? 48 : 54);
     lv_obj_t *hint = cjk_label(panel, "点击任意位置关闭", kTextFaint);
     lv_obj_align(hint, LV_ALIGN_BOTTOM_RIGHT, -18, -14);
 }
@@ -1104,7 +1527,7 @@ void LensReactUI::onClockTimer(lv_timer_t *timer)
 void LensReactUI::onPromptTimer(lv_timer_t *timer)
 {
     auto *app = static_cast<LensReactUI *>(timer ? LENS_TIMER_USER_DATA(timer) : nullptr);
-    if(app == nullptr || app->_current_app != 4) {
+    if(app == nullptr || app->_current_app != 5) {
         return;
     }
     app->_prompt_focus = (app->_prompt_focus + 1) % 4;
@@ -1113,14 +1536,14 @@ void LensReactUI::onPromptTimer(lv_timer_t *timer)
             continue;
         }
         const bool active = i == app->_prompt_focus;
-        const bool compact = app->_view_height <= 260;
+        const bool compact = app->_view_height <= kCompactViewMaxHeight;
         lv_obj_set_style_text_font(app->_prompt_lines[i],
                                    active ? (compact ? &lv_font_montserrat_24 : &lv_font_montserrat_34) :
                                             (compact ? &lv_font_montserrat_16 : &lv_font_montserrat_28),
                                    0);
         lv_obj_set_style_text_color(app->_prompt_lines[i], active ? kGreen : (i == ((app->_prompt_focus + 1) % 4) ? kTextDim : kTextFaint), 0);
         lv_obj_align(app->_prompt_lines[i], LV_ALIGN_CENTER, 0,
-                     compact ? (-50 + ((int)i - (int)app->_prompt_focus + 1) * 30) :
+                     compact ? (-58 + ((int)i - (int)app->_prompt_focus + 1) * 38) :
                                (-78 + ((int)i - (int)app->_prompt_focus + 1) * 52));
     }
 }
@@ -1132,9 +1555,31 @@ void LensReactUI::onMicTimer(lv_timer_t *timer)
         return;
     }
     app->_mic_expand = !app->_mic_expand;
-    lv_obj_set_size(app->_mic_ring, app->_mic_expand ? 88 : 70, app->_mic_expand ? 88 : 70);
+    const bool compact = app->_view_height <= kCompactViewMaxHeight;
+    const lv_coord_t ring_size = compact ? (app->_mic_expand ? 48 : 42) : (app->_mic_expand ? 88 : 70);
+    lv_obj_set_size(app->_mic_ring, ring_size, ring_size);
     lv_obj_set_style_bg_opa(app->_mic_ring, app->_mic_expand ? LV_OPA_10 : LV_OPA_30, 0);
-    lv_obj_align(app->_mic_ring, LV_ALIGN_BOTTOM_MID, 0, -70);
+    lv_obj_align(app->_mic_ring, compact ? LV_ALIGN_CENTER : LV_ALIGN_BOTTOM_MID, 0, compact ? 1 : -70);
+}
+
+void LensReactUI::onNotificationTimer(lv_timer_t *timer)
+{
+    auto *app = static_cast<LensReactUI *>(timer ? LENS_TIMER_USER_DATA(timer) : nullptr);
+    if(app == nullptr || app->_current_app != kNotificationAppIndex) {
+        return;
+    }
+    for(uint8_t i = 0; i < kMaxNotificationBubbles;) {
+        if(app->_notification_bubbles[i].obj == nullptr) {
+            ++i;
+            continue;
+        }
+        app->_notification_bubbles[i].age_seconds++;
+        if(app->_notification_bubbles[i].age_seconds >= 10) {
+            app->removeNotificationBubble(i);
+            continue;
+        }
+        ++i;
+    }
 }
 
 void LensReactUI::onRootPressed(lv_event_t *event)
@@ -1193,6 +1638,20 @@ void LensReactUI::onRootKey(lv_event_t *event)
         }
         return;
     }
+    if(app->_current_app == kNotificationAppIndex) {
+        if(key == '1') {
+            app->triggerNotification(0);
+            return;
+        }
+        if(key == '2') {
+            app->triggerNotification(1);
+            return;
+        }
+        if(key == '3') {
+            app->triggerNotification(2);
+            return;
+        }
+    }
     if(app->_current_app < 0) {
         if((key == LV_KEY_RIGHT) && (app->_selected_index + 1 < kAppCount)) {
             app->selectIndex(app->_selected_index + 1, true);
@@ -1222,6 +1681,32 @@ void LensReactUI::onOverlayDismissed(lv_event_t *event)
     }
 }
 
+void LensReactUI::onNotificationSwitchChanged(lv_event_t *event)
+{
+    auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
+    lv_obj_t *target = lv_event_get_target(event);
+    if(app == nullptr || target == nullptr) {
+        return;
+    }
+    app->_notifications_enabled = lv_obj_has_state(target, LV_STATE_CHECKED);
+    if(!app->_notifications_enabled) {
+        app->clearNotificationBubbles();
+        app->updateNotificationBubbleLayout();
+    }
+    app->updateNotificationLabels();
+}
+
+void LensReactUI::onTtsSwitchChanged(lv_event_t *event)
+{
+    auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
+    lv_obj_t *target = lv_event_get_target(event);
+    if(app == nullptr || target == nullptr) {
+        return;
+    }
+    app->_tts_enabled = lv_obj_has_state(target, LV_STATE_CHECKED);
+    app->updateNotificationLabels();
+}
+
 void LensReactUI::onTileClicked(lv_event_t *event)
 {
     auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
@@ -1244,4 +1729,14 @@ void LensReactUI::onTileClicked(lv_event_t *event)
 void LensReactUI::onAnimX(void *obj, int32_t value)
 {
     lv_obj_set_x(static_cast<lv_obj_t *>(obj), value);
+}
+
+void LensReactUI::onAnimY(void *obj, int32_t value)
+{
+    lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
+}
+
+void LensReactUI::onAnimOpa(void *obj, int32_t value)
+{
+    lv_obj_set_style_opa(static_cast<lv_obj_t *>(obj), (lv_opa_t)value, 0);
 }
