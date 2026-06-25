@@ -838,43 +838,63 @@ void LensReactUI::createNotesPage(void)
 void LensReactUI::createNavigationPage(void)
 {
     if(_view_height <= kCompactViewMaxHeight) {
-        static const lv_point_t arrow_shaft[] = {{12, 40}, {12, 4}};
-        static const lv_point_t arrow_head[] = {{12, 4}, {2, 15}, {12, 4}, {22, 15}};
+        static const lv_point_t arrow_shaft[] = {{18, 52}, {18, 5}};
+        static const lv_point_t arrow_head[] = {{18, 5}, {3, 20}, {18, 5}, {33, 20}};
 
-        lv_obj_t *baseline = box(_page_content, _view_width - 24, 2, kHudGreen, LV_OPA_70, 1);
-        lv_obj_align(baseline, LV_ALIGN_BOTTOM_MID, 0, -8);
+        const lv_coord_t baseline_y = lv_obj_get_height(_page_content) - 14;
+        lv_obj_t *baseline = box(_page_content, _view_width - 32, 2, kHudGreen, LV_OPA_COVER, 1);
+        lv_obj_set_pos(baseline, 16, baseline_y);
+
+        lv_obj_t *start_dot = box(_page_content, 7, 7, LV_COLOR_MAKE(0xdc, 0xff, 0xe5), LV_OPA_COVER, LV_RADIUS_CIRCLE);
+        lv_obj_set_pos(start_dot, 13, baseline_y - 2);
+        lv_obj_t *end_dot = box(_page_content, 7, 7, LV_COLOR_MAKE(0xdc, 0xff, 0xe5), LV_OPA_COVER, LV_RADIUS_CIRCLE);
+        lv_obj_set_pos(end_dot, _view_width - 20, baseline_y - 2);
 
         lv_obj_t *arrow = lv_obj_create(_page_content);
         set_plain(arrow);
-        lv_obj_set_size(arrow, 26, 46);
-        lv_obj_align(arrow, LV_ALIGN_BOTTOM_LEFT, 20, -18);
-        line(arrow, arrow_shaft, 2, kHudGreen, LV_OPA_COVER, 4);
-        line(arrow, arrow_head, 4, kHudGreen, LV_OPA_COVER, 4);
+        lv_obj_set_size(arrow, 38, 58);
+        lv_obj_set_pos(arrow, 18, baseline_y - 66);
+        line(arrow, arrow_shaft, 2, kHudGreen, LV_OPA_COVER, 5);
+        line(arrow, arrow_head, 4, kHudGreen, LV_OPA_COVER, 5);
         style_no_frame(arrow);
 
-        lv_obj_t *distance = label(_page_content, "724m", &lv_font_montserrat_28, kHudGreen);
-        lv_obj_align(distance, LV_ALIGN_BOTTOM_LEFT, 54, -18);
+        lv_obj_t *distance = label(_page_content, "350", &lv_font_montserrat_48, kHudGreen);
+        lv_obj_set_pos(distance, 62, baseline_y - 61);
         style_no_frame(distance);
+
+        lv_obj_t *distance_unit = label(_page_content, "m", &lv_font_montserrat_16, kHudGreen);
+        lv_obj_set_pos(distance_unit, 151, baseline_y - 27);
+        style_no_frame(distance_unit);
+
+        lv_obj_t *separator_left = label(_page_content, "/", &lv_font_montserrat_28, LV_COLOR_MAKE(0x14, 0x74, 0x43));
+        lv_obj_set_pos(separator_left, 268, baseline_y - 50);
 
         lv_obj_t *bike = lv_img_create(_page_content);
         lv_img_set_src(bike, &nav_bicycle_icon);
-        lv_img_set_zoom(bike, 148);
+        lv_img_set_zoom(bike, 100);
         style_no_frame(bike);
-        lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -44, -2);
+        lv_obj_set_pos(bike, 246, baseline_y - 70);
 
-        lv_obj_t *speed = label(_page_content, "5 Km/h", &lv_font_montserrat_14, kHudGreen);
-        lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 18, -16);
+        lv_obj_t *speed = label(_page_content, "35", &lv_font_montserrat_24, kHudGreen);
+        lv_obj_set_pos(speed, 315, baseline_y - 47);
         style_no_frame(speed);
 
-        lv_obj_t *remain = cjk_label(_page_content, "剩余:2.8公里 10分钟", kHudGreen);
-        lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -52, -17);
+        lv_obj_t *speed_unit = label(_page_content, "Km/h", &lv_font_montserrat_12, kHudGreen);
+        lv_obj_set_pos(speed_unit, 346, baseline_y - 31);
+        style_no_frame(speed_unit);
+
+        lv_obj_t *separator_right = label(_page_content, "/", &lv_font_montserrat_28, LV_COLOR_MAKE(0x14, 0x74, 0x43));
+        lv_obj_set_pos(separator_right, 371, baseline_y - 50);
+
+        lv_obj_t *remain = cjk_label(_page_content, "剩余:2.8km", LV_COLOR_MAKE(0x86, 0xef, 0xac));
+        lv_obj_set_pos(remain, 387, baseline_y - 35);
         style_no_frame(remain);
 
         lv_obj_t *flag = lv_img_create(_page_content);
         lv_img_set_src(flag, &nav_flag_icon);
-        lv_img_set_zoom(flag, 132);
+        lv_img_set_zoom(flag, 76);
         style_no_frame(flag);
-        lv_obj_align(flag, LV_ALIGN_BOTTOM_RIGHT, -14, -5);
+        lv_obj_set_pos(flag, _view_width - 35, baseline_y - 54);
         return;
     }
 
