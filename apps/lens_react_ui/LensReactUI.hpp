@@ -36,7 +36,6 @@ private:
     static void onAnimX(void *obj, int32_t value);
     static void onAnimY(void *obj, int32_t value);
     static void onAnimOpa(void *obj, int32_t value);
-    static void onAnimZoom(void *obj, int32_t value);
     static void onAnimHideReady(lv_anim_t *anim);
 
     struct NotificationBubble {

@@ -905,7 +905,7 @@ void LensReactUI::createNavigationPage(void)
 
     _nav_direction_img = lv_img_create(_page_content);
     lv_img_set_src(_nav_direction_img, &nav_direction_straight);
-    lv_obj_set_pos(_nav_direction_img, 60, baseline_y - 105);
+    lv_obj_set_pos(_nav_direction_img, 64, baseline_y - 81);
     style_no_frame(_nav_direction_img);
 
     _nav_distance_label = label(_page_content, "350", &nav_font_72_digits, kHudGreen);
@@ -919,7 +919,7 @@ void LensReactUI::createNavigationPage(void)
 
     lv_obj_t *bike = lv_img_create(_page_content);
     lv_img_set_src(bike, &nav_bicycle);
-    lv_obj_set_pos(bike, 600, baseline_y - 74);
+    lv_obj_set_pos(bike, 606, baseline_y - 46);
     style_no_frame(bike);
 
     _nav_speed_label = label(_page_content, "35", &lv_font_montserrat_38, kHudGreen);
@@ -936,24 +936,23 @@ void LensReactUI::createNavigationPage(void)
 
     lv_obj_t *flag = lv_img_create(_page_content);
     lv_img_set_src(flag, &nav_flag);
-    lv_obj_set_pos(flag, 950, baseline_y - 57);
+    lv_obj_set_pos(flag, 958, baseline_y - 41);
     style_no_frame(flag);
 
-    _nav_traffic_card = box(_page_content, 220, 92, LV_COLOR_MAKE(0x08, 0x08, 0x09), LV_OPA_90, 16);
-    lv_obj_align(_nav_traffic_card, LV_ALIGN_CENTER, 0, 48);
+    _nav_traffic_card = box(_page_content, 228, 92, LV_COLOR_MAKE(0x08, 0x08, 0x09), LV_OPA_90, 16);
+    lv_obj_align(_nav_traffic_card, LV_ALIGN_TOP_MID, 0, 42);
     lv_obj_set_style_border_width(_nav_traffic_card, 1, 0);
     lv_obj_set_style_border_color(_nav_traffic_card, kRed, 0);
     lv_obj_set_style_border_opa(_nav_traffic_card, LV_OPA_50, 0);
 
     _nav_traffic_img = lv_img_create(_nav_traffic_card);
     lv_img_set_src(_nav_traffic_img, &nav_traffic_red);
-    lv_img_set_zoom(_nav_traffic_img, 150);
-    lv_obj_align(_nav_traffic_img, LV_ALIGN_LEFT_MID, 14, 0);
+    lv_obj_align(_nav_traffic_img, LV_ALIGN_LEFT_MID, 16, 0);
 
     _nav_traffic_title = cjk_label(_nav_traffic_card, "前方红灯 80m", kRed);
-    lv_obj_align(_nav_traffic_title, LV_ALIGN_TOP_LEFT, 74, 16);
+    lv_obj_align(_nav_traffic_title, LV_ALIGN_TOP_LEFT, 60, 16);
     _nav_traffic_countdown = label(_nav_traffic_card, "16s", &lv_font_montserrat_28, kRed);
-    lv_obj_align(_nav_traffic_countdown, LV_ALIGN_BOTTOM_MID, 25, -12);
+    lv_obj_align(_nav_traffic_countdown, LV_ALIGN_BOTTOM_MID, 18, -12);
 
     resetNavigationState(_navigation_state);
     _nav_rendered_light_state = NavigationLightState::None;
@@ -1005,14 +1004,6 @@ void LensReactUI::updateNavigationPage(void)
             lv_anim_set_ready_cb(&fade, onAnimHideReady);
             lv_anim_start(&fade);
 
-            lv_anim_t shrink;
-            lv_anim_init(&shrink);
-            lv_anim_set_var(&shrink, _nav_traffic_card);
-            lv_anim_set_values(&shrink, 256, 230);
-            lv_anim_set_time(&shrink, 500);
-            lv_anim_set_path_cb(&shrink, lv_anim_path_ease_in);
-            lv_anim_set_exec_cb(&shrink, onAnimZoom);
-            lv_anim_start(&shrink);
         } else {
             lv_obj_add_flag(_nav_traffic_card, LV_OBJ_FLAG_HIDDEN);
         }
@@ -1024,7 +1015,6 @@ void LensReactUI::updateNavigationPage(void)
     lv_obj_clear_flag(_nav_traffic_card, LV_OBJ_FLAG_HIDDEN);
     if(show_animation) {
         lv_obj_set_style_opa(_nav_traffic_card, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_transform_zoom(_nav_traffic_card, 230, 0);
 
         lv_anim_t fade;
         lv_anim_init(&fade);
@@ -1034,15 +1024,6 @@ void LensReactUI::updateNavigationPage(void)
         lv_anim_set_path_cb(&fade, lv_anim_path_ease_out);
         lv_anim_set_exec_cb(&fade, onAnimOpa);
         lv_anim_start(&fade);
-
-        lv_anim_t grow;
-        lv_anim_init(&grow);
-        lv_anim_set_var(&grow, _nav_traffic_card);
-        lv_anim_set_values(&grow, 230, 256);
-        lv_anim_set_time(&grow, 500);
-        lv_anim_set_path_cb(&grow, lv_anim_path_ease_out);
-        lv_anim_set_exec_cb(&grow, onAnimZoom);
-        lv_anim_start(&grow);
     }
     _nav_rendered_light_state = _navigation_state.light_state;
 
@@ -1929,11 +1910,6 @@ void LensReactUI::onAnimOpa(void *obj, int32_t value)
     lv_obj_set_style_opa(static_cast<lv_obj_t *>(obj), (lv_opa_t)value, 0);
 }
 
-void LensReactUI::onAnimZoom(void *obj, int32_t value)
-{
-    lv_obj_set_style_transform_zoom(static_cast<lv_obj_t *>(obj), static_cast<uint16_t>(value), 0);
-}
-
 void LensReactUI::onAnimHideReady(lv_anim_t *anim)
 {
     auto *obj = static_cast<lv_obj_t *>(anim ? anim->var : nullptr);
@@ -1942,5 +1918,4 @@ void LensReactUI::onAnimHideReady(lv_anim_t *anim)
     }
     lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_opa(obj, LV_OPA_COVER, 0);
-    lv_obj_set_style_transform_zoom(obj, 256, 0);
 }
