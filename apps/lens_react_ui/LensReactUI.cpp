@@ -895,6 +895,11 @@ void LensReactUI::createNavigationPage(void)
 {
     const lv_coord_t content_height = lv_obj_get_height(_page_content);
     const lv_coord_t baseline_y = content_height - 28;
+    const lv_coord_t hud_bottom_y = baseline_y - 8;
+    const auto align_hud_bottom = [this, hud_bottom_y](lv_obj_t *obj, lv_coord_t x) {
+        lv_obj_update_layout(_page_content);
+        lv_obj_set_pos(obj, x, hud_bottom_y - lv_obj_get_height(obj));
+    };
 
     _nav_baseline = box(_page_content, _view_width - 112, 3, kHudGreen, LV_OPA_80, 2);
     lv_obj_set_pos(_nav_baseline, 56, baseline_y);
@@ -905,39 +910,39 @@ void LensReactUI::createNavigationPage(void)
 
     _nav_direction_img = lv_img_create(_page_content);
     lv_img_set_src(_nav_direction_img, &nav_direction_straight);
-    lv_obj_set_pos(_nav_direction_img, 64, baseline_y - 81);
     style_no_frame(_nav_direction_img);
+    align_hud_bottom(_nav_direction_img, 64);
 
     _nav_distance_label = label(_page_content, "350", &nav_font_72_digits, kHudGreen);
-    lv_obj_set_pos(_nav_distance_label, 150, baseline_y - 84);
+    align_hud_bottom(_nav_distance_label, 150);
 
     lv_obj_t *distance_unit = label(_page_content, "m", &lv_font_montserrat_28, kHudGreen);
-    lv_obj_set_pos(distance_unit, 300, baseline_y - 48);
+    align_hud_bottom(distance_unit, 300);
 
     lv_obj_t *separator_left = label(_page_content, "/", &lv_font_montserrat_38, LV_COLOR_MAKE(0x14, 0x74, 0x43));
-    lv_obj_set_pos(separator_left, 548, baseline_y - 72);
+    align_hud_bottom(separator_left, 548);
 
     lv_obj_t *bike = lv_img_create(_page_content);
     lv_img_set_src(bike, &nav_bicycle);
-    lv_obj_set_pos(bike, 606, baseline_y - 46);
     style_no_frame(bike);
+    align_hud_bottom(bike, 606);
 
     _nav_speed_label = label(_page_content, "35", &lv_font_montserrat_38, kHudGreen);
-    lv_obj_set_pos(_nav_speed_label, 664, baseline_y - 65);
+    align_hud_bottom(_nav_speed_label, 664);
 
     lv_obj_t *speed_unit = label(_page_content, "Km/h", &lv_font_montserrat_16, kHudGreen);
-    lv_obj_set_pos(speed_unit, 721, baseline_y - 40);
+    align_hud_bottom(speed_unit, 721);
 
     lv_obj_t *separator_right = label(_page_content, "/", &lv_font_montserrat_38, LV_COLOR_MAKE(0x14, 0x74, 0x43));
-    lv_obj_set_pos(separator_right, 775, baseline_y - 72);
+    align_hud_bottom(separator_right, 775);
 
     lv_obj_t *remain = cjk_label(_page_content, "剩余: 2.8公里", LV_COLOR_MAKE(0x86, 0xef, 0xac));
-    lv_obj_set_pos(remain, 824, baseline_y - 48);
+    align_hud_bottom(remain, 824);
 
     lv_obj_t *flag = lv_img_create(_page_content);
     lv_img_set_src(flag, &nav_flag);
-    lv_obj_set_pos(flag, 958, baseline_y - 41);
     style_no_frame(flag);
+    align_hud_bottom(flag, 958);
 
     _nav_traffic_card = box(_page_content, 228, 92, LV_COLOR_MAKE(0x08, 0x08, 0x09), LV_OPA_90, 16);
     lv_obj_align(_nav_traffic_card, LV_ALIGN_TOP_MID, 0, 42);
