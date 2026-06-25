@@ -10,8 +10,19 @@
 #endif
 
 LV_FONT_DECLARE(smartglass_font_16_cjk);
+LV_FONT_DECLARE(nav_font_72_digits);
 LV_IMG_DECLARE(nav_bicycle_icon);
 LV_IMG_DECLARE(nav_flag_icon);
+LV_IMG_DECLARE(nav_bicycle);
+LV_IMG_DECLARE(nav_direction_straight);
+LV_IMG_DECLARE(nav_direction_left);
+LV_IMG_DECLARE(nav_direction_right);
+LV_IMG_DECLARE(nav_direction_slight_left);
+LV_IMG_DECLARE(nav_direction_slight_right);
+LV_IMG_DECLARE(nav_direction_uturn);
+LV_IMG_DECLARE(nav_flag);
+LV_IMG_DECLARE(nav_traffic_red);
+LV_IMG_DECLARE(nav_traffic_green);
 
 namespace {
 constexpr lv_color_t kBlack = LV_COLOR_MAKE(0x00, 0x00, 0x00);
@@ -36,6 +47,7 @@ constexpr lv_color_t kCyan = LV_COLOR_MAKE(0x22, 0xd3, 0xee);
 constexpr lv_color_t kOrange = LV_COLOR_MAKE(0xea, 0x58, 0x0c);
 constexpr lv_color_t kPurple = LV_COLOR_MAKE(0xa7, 0x8b, 0xfa);
 constexpr lv_color_t kHudGreen = LV_COLOR_MAKE(0x31, 0xff, 0x65);
+constexpr lv_color_t kHudDot = LV_COLOR_MAKE(0xdc, 0xff, 0xe5);
 constexpr uint8_t kBatteryPercent = 88;
 constexpr lv_coord_t kStatusBarHeight = 30;
 constexpr lv_coord_t kPageBottomSafeArea = 0;
@@ -209,6 +221,25 @@ bool fill_local_time(std::tm *time_info)
     return localtime_r(&now, time_info) != nullptr;
 #endif
 }
+
+const lv_img_dsc_t *navigation_direction_image(NavigationDirection direction)
+{
+    switch(direction) {
+    case NavigationDirection::Left:
+        return &nav_direction_left;
+    case NavigationDirection::Right:
+        return &nav_direction_right;
+    case NavigationDirection::SlightLeft:
+        return &nav_direction_slight_left;
+    case NavigationDirection::SlightRight:
+        return &nav_direction_slight_right;
+    case NavigationDirection::UTurn:
+        return &nav_direction_uturn;
+    case NavigationDirection::Straight:
+    default:
+        return &nav_direction_straight;
+    }
+}
 }
 
 LensReactUI::LensReactUI()
@@ -284,12 +315,16 @@ bool LensReactUI::run(void)
     _clock_timer = lv_timer_create(onClockTimer, 1000, this);
     _prompt_timer = lv_timer_create(onPromptTimer, 1200, this);
     _mic_timer = lv_timer_create(onMicTimer, 650, this);
+    _navigation_timer = lv_timer_create(onNavigationTimer, 1000, this);
     _notification_timer = lv_timer_create(onNotificationTimer, 1000, this);
     if(_prompt_timer) {
         lv_timer_pause(_prompt_timer);
     }
     if(_mic_timer) {
         lv_timer_pause(_mic_timer);
+    }
+    if(_navigation_timer) {
+        lv_timer_pause(_navigation_timer);
     }
     if(_notification_timer) {
         lv_timer_pause(_notification_timer);
@@ -324,6 +359,10 @@ bool LensReactUI::close(void)
     if(_mic_timer) {
         lv_timer_del(_mic_timer);
         _mic_timer = nullptr;
+    }
+    if(_navigation_timer) {
+        lv_timer_del(_navigation_timer);
+        _navigation_timer = nullptr;
     }
     if(_notification_timer) {
         lv_timer_del(_notification_timer);
@@ -580,6 +619,9 @@ void LensReactUI::showHome(void)
     if(_mic_timer) {
         lv_timer_pause(_mic_timer);
     }
+    if(_navigation_timer) {
+        lv_timer_pause(_navigation_timer);
+    }
     if(_battery_label) {
         lv_obj_clear_flag(_battery_label, LV_OBJ_FLAG_HIDDEN);
     }
@@ -715,6 +757,9 @@ void LensReactUI::clearPageContent(void)
     if(_mic_timer) {
         lv_timer_pause(_mic_timer);
     }
+    if(_navigation_timer) {
+        lv_timer_pause(_navigation_timer);
+    }
     if(_notification_timer) {
         lv_timer_pause(_notification_timer);
     }
@@ -723,6 +768,17 @@ void LensReactUI::clearPageContent(void)
     _notification_hint_label = nullptr;
     _notification_state_label = nullptr;
     _tts_state_label = nullptr;
+    _nav_direction_img = nullptr;
+    _nav_distance_label = nullptr;
+    _nav_speed_label = nullptr;
+    _nav_baseline = nullptr;
+    _nav_start_dot = nullptr;
+    _nav_end_dot = nullptr;
+    _nav_traffic_card = nullptr;
+    _nav_traffic_img = nullptr;
+    _nav_traffic_title = nullptr;
+    _nav_traffic_countdown = nullptr;
+    _nav_rendered_light_state = NavigationLightState::None;
 }
 
 void LensReactUI::createCameraPage(void)
@@ -837,104 +893,180 @@ void LensReactUI::createNotesPage(void)
 
 void LensReactUI::createNavigationPage(void)
 {
-    if(_view_height <= kCompactViewMaxHeight) {
-        static const lv_point_t arrow_shaft[] = {{18, 52}, {18, 5}};
-        static const lv_point_t arrow_head[] = {{18, 5}, {3, 20}, {18, 5}, {33, 20}};
+    const lv_coord_t content_height = lv_obj_get_height(_page_content);
+    const lv_coord_t baseline_y = content_height - 28;
 
-        const lv_coord_t baseline_y = lv_obj_get_height(_page_content) - 14;
-        lv_obj_t *baseline = box(_page_content, _view_width - 32, 2, kHudGreen, LV_OPA_COVER, 1);
-        lv_obj_set_pos(baseline, 16, baseline_y);
+    _nav_baseline = box(_page_content, _view_width - 112, 3, kHudGreen, LV_OPA_80, 2);
+    lv_obj_set_pos(_nav_baseline, 56, baseline_y);
+    _nav_start_dot = box(_page_content, 10, 10, LV_COLOR_MAKE(0xdc, 0xff, 0xe5), LV_OPA_COVER, LV_RADIUS_CIRCLE);
+    lv_obj_set_pos(_nav_start_dot, 51, baseline_y - 4);
+    _nav_end_dot = box(_page_content, 10, 10, LV_COLOR_MAKE(0xdc, 0xff, 0xe5), LV_OPA_COVER, LV_RADIUS_CIRCLE);
+    lv_obj_set_pos(_nav_end_dot, _view_width - 61, baseline_y - 4);
 
-        lv_obj_t *start_dot = box(_page_content, 7, 7, LV_COLOR_MAKE(0xdc, 0xff, 0xe5), LV_OPA_COVER, LV_RADIUS_CIRCLE);
-        lv_obj_set_pos(start_dot, 13, baseline_y - 2);
-        lv_obj_t *end_dot = box(_page_content, 7, 7, LV_COLOR_MAKE(0xdc, 0xff, 0xe5), LV_OPA_COVER, LV_RADIUS_CIRCLE);
-        lv_obj_set_pos(end_dot, _view_width - 20, baseline_y - 2);
+    _nav_direction_img = lv_img_create(_page_content);
+    lv_img_set_src(_nav_direction_img, &nav_direction_straight);
+    lv_obj_set_pos(_nav_direction_img, 60, baseline_y - 105);
+    style_no_frame(_nav_direction_img);
 
-        lv_obj_t *arrow = lv_obj_create(_page_content);
-        set_plain(arrow);
-        lv_obj_set_size(arrow, 38, 58);
-        lv_obj_set_pos(arrow, 18, baseline_y - 66);
-        line(arrow, arrow_shaft, 2, kHudGreen, LV_OPA_COVER, 5);
-        line(arrow, arrow_head, 4, kHudGreen, LV_OPA_COVER, 5);
-        style_no_frame(arrow);
+    _nav_distance_label = label(_page_content, "350", &nav_font_72_digits, kHudGreen);
+    lv_obj_set_pos(_nav_distance_label, 150, baseline_y - 84);
 
-        lv_obj_t *distance = label(_page_content, "350", &lv_font_montserrat_48, kHudGreen);
-        lv_obj_set_pos(distance, 62, baseline_y - 61);
-        style_no_frame(distance);
+    lv_obj_t *distance_unit = label(_page_content, "m", &lv_font_montserrat_28, kHudGreen);
+    lv_obj_set_pos(distance_unit, 300, baseline_y - 48);
 
-        lv_obj_t *distance_unit = label(_page_content, "m", &lv_font_montserrat_16, kHudGreen);
-        lv_obj_set_pos(distance_unit, 151, baseline_y - 27);
-        style_no_frame(distance_unit);
+    lv_obj_t *separator_left = label(_page_content, "/", &lv_font_montserrat_38, LV_COLOR_MAKE(0x14, 0x74, 0x43));
+    lv_obj_set_pos(separator_left, 548, baseline_y - 72);
 
-        lv_obj_t *separator_left = label(_page_content, "/", &lv_font_montserrat_28, LV_COLOR_MAKE(0x14, 0x74, 0x43));
-        lv_obj_set_pos(separator_left, 268, baseline_y - 50);
+    lv_obj_t *bike = lv_img_create(_page_content);
+    lv_img_set_src(bike, &nav_bicycle);
+    lv_obj_set_pos(bike, 600, baseline_y - 74);
+    style_no_frame(bike);
 
-        lv_obj_t *bike = lv_img_create(_page_content);
-        lv_img_set_src(bike, &nav_bicycle_icon);
-        lv_img_set_zoom(bike, 100);
-        style_no_frame(bike);
-        lv_obj_set_pos(bike, 246, baseline_y - 70);
+    _nav_speed_label = label(_page_content, "35", &lv_font_montserrat_38, kHudGreen);
+    lv_obj_set_pos(_nav_speed_label, 664, baseline_y - 65);
 
-        lv_obj_t *speed = label(_page_content, "35", &lv_font_montserrat_24, kHudGreen);
-        lv_obj_set_pos(speed, 315, baseline_y - 47);
-        style_no_frame(speed);
+    lv_obj_t *speed_unit = label(_page_content, "Km/h", &lv_font_montserrat_16, kHudGreen);
+    lv_obj_set_pos(speed_unit, 721, baseline_y - 40);
 
-        lv_obj_t *speed_unit = label(_page_content, "Km/h", &lv_font_montserrat_12, kHudGreen);
-        lv_obj_set_pos(speed_unit, 346, baseline_y - 31);
-        style_no_frame(speed_unit);
+    lv_obj_t *separator_right = label(_page_content, "/", &lv_font_montserrat_38, LV_COLOR_MAKE(0x14, 0x74, 0x43));
+    lv_obj_set_pos(separator_right, 775, baseline_y - 72);
 
-        lv_obj_t *separator_right = label(_page_content, "/", &lv_font_montserrat_28, LV_COLOR_MAKE(0x14, 0x74, 0x43));
-        lv_obj_set_pos(separator_right, 371, baseline_y - 50);
+    lv_obj_t *remain = cjk_label(_page_content, "剩余: 2.8公里", LV_COLOR_MAKE(0x86, 0xef, 0xac));
+    lv_obj_set_pos(remain, 824, baseline_y - 48);
 
-        lv_obj_t *remain = cjk_label(_page_content, "剩余:2.8km", LV_COLOR_MAKE(0x86, 0xef, 0xac));
-        lv_obj_set_pos(remain, 387, baseline_y - 35);
-        style_no_frame(remain);
+    lv_obj_t *flag = lv_img_create(_page_content);
+    lv_img_set_src(flag, &nav_flag);
+    lv_obj_set_pos(flag, 950, baseline_y - 57);
+    style_no_frame(flag);
 
-        lv_obj_t *flag = lv_img_create(_page_content);
-        lv_img_set_src(flag, &nav_flag_icon);
-        lv_img_set_zoom(flag, 76);
-        style_no_frame(flag);
-        lv_obj_set_pos(flag, _view_width - 35, baseline_y - 54);
+    _nav_traffic_card = box(_page_content, 220, 92, LV_COLOR_MAKE(0x08, 0x08, 0x09), LV_OPA_90, 16);
+    lv_obj_align(_nav_traffic_card, LV_ALIGN_CENTER, 0, 48);
+    lv_obj_set_style_border_width(_nav_traffic_card, 1, 0);
+    lv_obj_set_style_border_color(_nav_traffic_card, kRed, 0);
+    lv_obj_set_style_border_opa(_nav_traffic_card, LV_OPA_50, 0);
+
+    _nav_traffic_img = lv_img_create(_nav_traffic_card);
+    lv_img_set_src(_nav_traffic_img, &nav_traffic_red);
+    lv_img_set_zoom(_nav_traffic_img, 150);
+    lv_obj_align(_nav_traffic_img, LV_ALIGN_LEFT_MID, 14, 0);
+
+    _nav_traffic_title = cjk_label(_nav_traffic_card, "前方红灯 80m", kRed);
+    lv_obj_align(_nav_traffic_title, LV_ALIGN_TOP_LEFT, 74, 16);
+    _nav_traffic_countdown = label(_nav_traffic_card, "16s", &lv_font_montserrat_28, kRed);
+    lv_obj_align(_nav_traffic_countdown, LV_ALIGN_BOTTOM_MID, 25, -12);
+
+    resetNavigationState(_navigation_state);
+    _nav_rendered_light_state = NavigationLightState::None;
+    updateNavigationPage();
+    if(_navigation_timer) {
+        lv_timer_resume(_navigation_timer);
+    }
+}
+
+void LensReactUI::updateNavigationPage(void)
+{
+    if(_nav_direction_img == nullptr || _nav_distance_label == nullptr || _nav_speed_label == nullptr) {
         return;
     }
 
-    static const lv_point_t arrow_shaft[] = {{18, 62}, {18, 4}};
-    static const lv_point_t arrow_head[] = {{18, 4}, {4, 20}, {18, 4}, {32, 20}};
+    char value[64];
+    std::snprintf(value, sizeof(value), "%d", _navigation_state.distance);
+    lv_label_set_text(_nav_distance_label, value);
+    std::snprintf(value, sizeof(value), "%d", _navigation_state.speed);
+    lv_label_set_text(_nav_speed_label, value);
+    lv_img_set_src(_nav_direction_img, navigation_direction_image(_navigation_state.direction));
 
-    lv_obj_t *baseline = box(_page_content, _width - 40, 2, kHudGreen, LV_OPA_70, 1);
-    lv_obj_align(baseline, LV_ALIGN_BOTTOM_MID, 0, -16);
+    const bool stopped = _navigation_state.speed == 0;
+    const lv_color_t active_color = stopped ? kRed : kHudGreen;
+    const lv_color_t dot_color = stopped ? kRed : kHudDot;
+    lv_obj_set_style_text_color(_nav_speed_label, active_color, 0);
+    if(_nav_baseline) {
+        lv_obj_set_style_bg_color(_nav_baseline, active_color, 0);
+    }
+    if(_nav_start_dot) {
+        lv_obj_set_style_bg_color(_nav_start_dot, dot_color, 0);
+    }
+    if(_nav_end_dot) {
+        lv_obj_set_style_bg_color(_nav_end_dot, dot_color, 0);
+    }
 
-    lv_obj_t *arrow = lv_obj_create(_page_content);
-    set_plain(arrow);
-    lv_obj_set_size(arrow, 40, 68);
-    lv_obj_align(arrow, LV_ALIGN_BOTTOM_LEFT, 40, -32);
-    line(arrow, arrow_shaft, 2, kHudGreen, LV_OPA_COVER, 5);
-    line(arrow, arrow_head, 4, kHudGreen, LV_OPA_COVER, 5);
-    style_no_frame(arrow);
+    if(_nav_traffic_card == nullptr) {
+        return;
+    }
+    if(_navigation_state.light_state == NavigationLightState::None) {
+        if(_nav_rendered_light_state != NavigationLightState::None) {
+            lv_anim_t fade;
+            lv_anim_init(&fade);
+            lv_anim_set_var(&fade, _nav_traffic_card);
+            lv_anim_set_values(&fade, LV_OPA_COVER, LV_OPA_TRANSP);
+            lv_anim_set_time(&fade, 500);
+            lv_anim_set_path_cb(&fade, lv_anim_path_ease_in);
+            lv_anim_set_exec_cb(&fade, onAnimOpa);
+            lv_anim_set_ready_cb(&fade, onAnimHideReady);
+            lv_anim_start(&fade);
 
-    lv_obj_t *distance = label(_page_content, "724m", &lv_font_montserrat_38, kHudGreen);
-    lv_obj_align(distance, LV_ALIGN_BOTTOM_LEFT, 92, -36);
-    style_no_frame(distance);
+            lv_anim_t shrink;
+            lv_anim_init(&shrink);
+            lv_anim_set_var(&shrink, _nav_traffic_card);
+            lv_anim_set_values(&shrink, 256, 230);
+            lv_anim_set_time(&shrink, 500);
+            lv_anim_set_path_cb(&shrink, lv_anim_path_ease_in);
+            lv_anim_set_exec_cb(&shrink, onAnimZoom);
+            lv_anim_start(&shrink);
+        } else {
+            lv_obj_add_flag(_nav_traffic_card, LV_OBJ_FLAG_HIDDEN);
+        }
+        _nav_rendered_light_state = NavigationLightState::None;
+        return;
+    }
 
-    lv_obj_t *bike = lv_img_create(_page_content);
-    lv_img_set_src(bike, &nav_bicycle_icon);
-    lv_img_set_zoom(bike, 170);
-    style_no_frame(bike);
-    lv_obj_align(bike, LV_ALIGN_BOTTOM_MID, -54, -6);
+    const bool show_animation = _nav_rendered_light_state == NavigationLightState::None;
+    lv_obj_clear_flag(_nav_traffic_card, LV_OBJ_FLAG_HIDDEN);
+    if(show_animation) {
+        lv_obj_set_style_opa(_nav_traffic_card, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_transform_zoom(_nav_traffic_card, 230, 0);
 
-    lv_obj_t *speed = label(_page_content, "5 Km/h", &lv_font_montserrat_16, kHudGreen);
-    lv_obj_align(speed, LV_ALIGN_BOTTOM_MID, 22, -28);
-    style_no_frame(speed);
+        lv_anim_t fade;
+        lv_anim_init(&fade);
+        lv_anim_set_var(&fade, _nav_traffic_card);
+        lv_anim_set_values(&fade, LV_OPA_TRANSP, LV_OPA_COVER);
+        lv_anim_set_time(&fade, 500);
+        lv_anim_set_path_cb(&fade, lv_anim_path_ease_out);
+        lv_anim_set_exec_cb(&fade, onAnimOpa);
+        lv_anim_start(&fade);
 
-    lv_obj_t *remain = cjk_label(_page_content, "剩余:2.8公里 10分钟", kHudGreen);
-    lv_obj_align(remain, LV_ALIGN_BOTTOM_RIGHT, -92, -30);
-    style_no_frame(remain);
+        lv_anim_t grow;
+        lv_anim_init(&grow);
+        lv_anim_set_var(&grow, _nav_traffic_card);
+        lv_anim_set_values(&grow, 230, 256);
+        lv_anim_set_time(&grow, 500);
+        lv_anim_set_path_cb(&grow, lv_anim_path_ease_out);
+        lv_anim_set_exec_cb(&grow, onAnimZoom);
+        lv_anim_start(&grow);
+    }
+    _nav_rendered_light_state = _navigation_state.light_state;
 
-    lv_obj_t *flag = lv_img_create(_page_content);
-    lv_img_set_src(flag, &nav_flag_icon);
-    lv_img_set_zoom(flag, 168);
-    style_no_frame(flag);
-    lv_obj_align(flag, LV_ALIGN_BOTTOM_RIGHT, -34, -12);
+    const bool red = _navigation_state.light_state == NavigationLightState::Red;
+    const lv_color_t light_color = red ? kRed : kGreen;
+    lv_obj_set_style_border_color(_nav_traffic_card, light_color, 0);
+    lv_img_set_src(_nav_traffic_img, red ? &nav_traffic_red : &nav_traffic_green);
+    lv_obj_set_style_text_color(_nav_traffic_title, light_color, 0);
+    lv_obj_set_style_text_color(_nav_traffic_countdown, light_color, 0);
+
+    if(red) {
+        if(_navigation_state.light_distance > 0) {
+            std::snprintf(value, sizeof(value), "前方红灯 %dm", _navigation_state.light_distance);
+        } else {
+            std::snprintf(value, sizeof(value), "路口红灯停止");
+        }
+        lv_label_set_text(_nav_traffic_title, value);
+        std::snprintf(value, sizeof(value), "%ds", _navigation_state.light_countdown);
+        lv_label_set_text(_nav_traffic_countdown, value);
+        lv_obj_clear_flag(_nav_traffic_countdown, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_label_set_text(_nav_traffic_title, "绿灯通行");
+        lv_obj_add_flag(_nav_traffic_countdown, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 void LensReactUI::createNotificationPage(void)
@@ -1600,6 +1732,16 @@ void LensReactUI::onMicTimer(lv_timer_t *timer)
     lv_obj_align(app->_mic_ring, compact ? LV_ALIGN_CENTER : LV_ALIGN_BOTTOM_MID, 0, compact ? 1 : -70);
 }
 
+void LensReactUI::onNavigationTimer(lv_timer_t *timer)
+{
+    auto *app = static_cast<LensReactUI *>(timer ? LENS_TIMER_USER_DATA(timer) : nullptr);
+    if(app == nullptr || app->_current_app != 2) {
+        return;
+    }
+    stepNavigationState(app->_navigation_state);
+    app->updateNavigationPage();
+}
+
 void LensReactUI::onNotificationTimer(lv_timer_t *timer)
 {
     auto *app = static_cast<LensReactUI *>(timer ? LENS_TIMER_USER_DATA(timer) : nullptr);
@@ -1785,4 +1927,20 @@ void LensReactUI::onAnimY(void *obj, int32_t value)
 void LensReactUI::onAnimOpa(void *obj, int32_t value)
 {
     lv_obj_set_style_opa(static_cast<lv_obj_t *>(obj), (lv_opa_t)value, 0);
+}
+
+void LensReactUI::onAnimZoom(void *obj, int32_t value)
+{
+    lv_obj_set_style_transform_zoom(static_cast<lv_obj_t *>(obj), static_cast<uint16_t>(value), 0);
+}
+
+void LensReactUI::onAnimHideReady(lv_anim_t *anim)
+{
+    auto *obj = static_cast<lv_obj_t *>(anim ? anim->var : nullptr);
+    if(obj == nullptr || !lv_obj_is_valid(obj)) {
+        return;
+    }
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_opa(obj, LV_OPA_COVER, 0);
+    lv_obj_set_style_transform_zoom(obj, 256, 0);
 }

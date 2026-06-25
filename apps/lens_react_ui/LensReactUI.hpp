@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "lvgl.h"
+#include "NavigationSimulation.hpp"
 
 class LensReactUI {
 public:
@@ -22,6 +23,7 @@ private:
     static void onClockTimer(lv_timer_t *timer);
     static void onPromptTimer(lv_timer_t *timer);
     static void onMicTimer(lv_timer_t *timer);
+    static void onNavigationTimer(lv_timer_t *timer);
     static void onNotificationTimer(lv_timer_t *timer);
     static void onRootPressed(lv_event_t *event);
     static void onRootReleased(lv_event_t *event);
@@ -34,6 +36,8 @@ private:
     static void onAnimX(void *obj, int32_t value);
     static void onAnimY(void *obj, int32_t value);
     static void onAnimOpa(void *obj, int32_t value);
+    static void onAnimZoom(void *obj, int32_t value);
+    static void onAnimHideReady(lv_anim_t *anim);
 
     struct NotificationBubble {
         lv_obj_t *obj = nullptr;
@@ -52,6 +56,7 @@ private:
     void updateTileStyles(void);
     void updateClock(void);
     void updateDots(void);
+    void updateNavigationPage(void);
     void clearPageContent(void);
     void clearNotificationBubbles(void);
     void triggerNotification(uint8_t type);
@@ -87,6 +92,16 @@ private:
     lv_obj_t *_battery_label = nullptr;
     lv_obj_t *_battery_fill = nullptr;
     lv_obj_t *_assistant_overlay = nullptr;
+    lv_obj_t *_nav_direction_img = nullptr;
+    lv_obj_t *_nav_distance_label = nullptr;
+    lv_obj_t *_nav_speed_label = nullptr;
+    lv_obj_t *_nav_baseline = nullptr;
+    lv_obj_t *_nav_start_dot = nullptr;
+    lv_obj_t *_nav_end_dot = nullptr;
+    lv_obj_t *_nav_traffic_card = nullptr;
+    lv_obj_t *_nav_traffic_img = nullptr;
+    lv_obj_t *_nav_traffic_title = nullptr;
+    lv_obj_t *_nav_traffic_countdown = nullptr;
     lv_obj_t *_notification_stack = nullptr;
     lv_obj_t *_notification_empty_label = nullptr;
     lv_obj_t *_notification_hint_label = nullptr;
@@ -99,6 +114,7 @@ private:
     lv_timer_t *_clock_timer = nullptr;
     lv_timer_t *_prompt_timer = nullptr;
     lv_timer_t *_mic_timer = nullptr;
+    lv_timer_t *_navigation_timer = nullptr;
     lv_timer_t *_notification_timer = nullptr;
 
     lv_coord_t _width = 0;
@@ -115,4 +131,6 @@ private:
     bool _mic_expand = false;
     bool _notifications_enabled = true;
     bool _tts_enabled = false;
+    NavigationState _navigation_state = {};
+    NavigationLightState _nav_rendered_light_state = NavigationLightState::None;
 };
