@@ -4,6 +4,7 @@
 
 #include "lvgl.h"
 #include "NavigationSimulation.hpp"
+#include "NotificationTimeline.hpp"
 
 class LensReactUI {
 public:
@@ -31,8 +32,6 @@ private:
     static void onTileClicked(lv_event_t *event);
     static void onAssistantClicked(lv_event_t *event);
     static void onOverlayDismissed(lv_event_t *event);
-    static void onNotificationSwitchChanged(lv_event_t *event);
-    static void onTtsSwitchChanged(lv_event_t *event);
     static void onAnimX(void *obj, int32_t value);
     static void onAnimY(void *obj, int32_t value);
     static void onAnimOpa(void *obj, int32_t value);
@@ -40,7 +39,9 @@ private:
 
     struct NotificationBubble {
         lv_obj_t *obj = nullptr;
-        uint8_t age_seconds = 0;
+        NotificationTimeline timeline = {};
+        bool fade_started = false;
+        bool exit_started = false;
     };
 
     void createHome(lv_coord_t width, lv_coord_t height);
@@ -59,10 +60,12 @@ private:
     void clearPageContent(void);
     void clearNotificationBubbles(void);
     void triggerNotification(uint8_t type);
-    void addNotificationBubble(const char *source, const char *sender, const char *message, lv_color_t accent);
+    void addNotificationBubble(const char *source, const char *sender, const char *message, const char *icon,
+                               lv_color_t accent);
+    void startNotificationBubbleFade(uint8_t index);
+    void startNotificationBubbleExit(uint8_t index);
     void removeNotificationBubble(uint8_t index);
     void updateNotificationBubbleLayout(void);
-    void updateNotificationLabels(void);
 
     void createCameraPage(void);
     void createNotesPage(void);
@@ -103,9 +106,6 @@ private:
     lv_obj_t *_nav_traffic_countdown = nullptr;
     lv_obj_t *_notification_stack = nullptr;
     lv_obj_t *_notification_empty_label = nullptr;
-    lv_obj_t *_notification_hint_label = nullptr;
-    lv_obj_t *_notification_state_label = nullptr;
-    lv_obj_t *_tts_state_label = nullptr;
     lv_obj_t *_prompt_lines[4] = {};
     lv_obj_t *_mic_ring = nullptr;
     NotificationBubble _notification_bubbles[kMaxNotificationBubbles] = {};
@@ -128,8 +128,6 @@ private:
     bool _dragging = false;
     bool _suppress_click = false;
     bool _mic_expand = false;
-    bool _notifications_enabled = true;
-    bool _tts_enabled = false;
     NavigationState _navigation_state = {};
     NavigationLightState _nav_rendered_light_state = NavigationLightState::None;
 };

@@ -10,6 +10,8 @@
 #endif
 
 LV_FONT_DECLARE(smartglass_font_16_cjk);
+LV_FONT_DECLARE(smartglass_font_14_cjk);
+LV_FONT_DECLARE(smartglass_font_12_cjk);
 LV_FONT_DECLARE(nav_font_72_digits);
 LV_IMG_DECLARE(nav_bicycle_icon);
 LV_IMG_DECLARE(nav_flag_icon);
@@ -175,38 +177,6 @@ void style_soft_action(lv_obj_t *obj, lv_color_t accent)
     lv_obj_set_style_shadow_width(obj, 10, 0);
     lv_obj_set_style_shadow_color(obj, kBlack, 0);
     lv_obj_set_style_shadow_opa(obj, LV_OPA_30, 0);
-}
-
-lv_obj_t *create_toggle_row(lv_obj_t *parent, lv_coord_t width, const char *title, const char *subtitle,
-                            bool checked, lv_color_t accent, lv_event_cb_t callback, void *user_data,
-                            lv_obj_t **state_label)
-{
-    lv_obj_t *row = box(parent, width, 50, LV_COLOR_MAKE(0x22, 0x23, 0x27), LV_OPA_COVER, 12);
-    style_soft_row(row);
-
-    lv_obj_t *name = cjk_label(row, title, kText);
-    lv_obj_align(name, LV_ALIGN_LEFT_MID, 16, -9);
-
-    lv_obj_t *desc = cjk_label(row, subtitle, kTextFaint);
-    lv_obj_align(desc, LV_ALIGN_LEFT_MID, 16, 13);
-
-    lv_obj_t *sw = lv_switch_create(row);
-    lv_obj_set_size(sw, 46, 24);
-    lv_obj_align(sw, LV_ALIGN_RIGHT_MID, -18, 0);
-    lv_obj_set_style_bg_color(sw, LV_COLOR_MAKE(0x3f, 0x3f, 0x46), LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(sw, accent, LV_PART_INDICATOR | LV_STATE_CHECKED);
-    lv_obj_set_style_bg_color(sw, kText, LV_PART_KNOB);
-    lv_obj_add_event_cb(sw, callback, LV_EVENT_VALUE_CHANGED, user_data);
-    if(checked) {
-        lv_obj_add_state(sw, LV_STATE_CHECKED);
-    }
-
-    if(state_label) {
-        *state_label = cjk_label(row, checked ? "开启" : "关闭", checked ? accent : kTextFaint);
-        lv_obj_align_to(*state_label, sw, LV_ALIGN_OUT_LEFT_MID, -10, 0);
-    }
-
-    return row;
 }
 
 bool fill_local_time(std::tm *time_info)
@@ -387,9 +357,6 @@ bool LensReactUI::close(void)
     _assistant_overlay = nullptr;
     _notification_stack = nullptr;
     _notification_empty_label = nullptr;
-    _notification_hint_label = nullptr;
-    _notification_state_label = nullptr;
-    _tts_state_label = nullptr;
     return true;
 }
 
@@ -765,9 +732,6 @@ void LensReactUI::clearPageContent(void)
     }
     _notification_stack = nullptr;
     _notification_empty_label = nullptr;
-    _notification_hint_label = nullptr;
-    _notification_state_label = nullptr;
-    _tts_state_label = nullptr;
     _nav_direction_img = nullptr;
     _nav_distance_label = nullptr;
     _nav_speed_label = nullptr;
@@ -1057,140 +1021,24 @@ void LensReactUI::updateNavigationPage(void)
 
 void LensReactUI::createNotificationPage(void)
 {
-    const bool compact = _view_height <= kCompactViewMaxHeight;
-    if(compact) {
-        const bool narrow = _view_width < 560;
-        const lv_coord_t side_margin = narrow ? 24 : 24;
-        const lv_coord_t stack_width = narrow ? (_view_width - side_margin * 2) : 352;
-        const lv_coord_t stack_height = narrow ? (lv_obj_get_height(_page_content) - 164) : 122;
-        const lv_coord_t control_width = narrow ? (_view_width - side_margin * 2) : 206;
-        const lv_coord_t control_height = narrow ? 72 : 82;
-
-        lv_obj_t *title = cjk_label(_page_content, "通知", kYellow);
-        lv_obj_align(title, LV_ALIGN_TOP_LEFT, side_margin, 38);
-
-        _notification_hint_label = cjk_label(_page_content, "1微信  2短信  3钉钉", kTextDim);
-        lv_obj_align(_notification_hint_label, LV_ALIGN_TOP_RIGHT, -side_margin, 38);
-
-        _notification_stack = lv_obj_create(_page_content);
-        set_plain(_notification_stack);
-        lv_obj_set_size(_notification_stack, stack_width, stack_height);
-        lv_obj_align(_notification_stack, LV_ALIGN_TOP_LEFT, side_margin, 66);
-        lv_obj_set_style_bg_opa(_notification_stack, LV_OPA_TRANSP, 0);
-
-        _notification_empty_label = cjk_label(_notification_stack, "等待测试通知", kTextFaint);
-        lv_obj_align(_notification_empty_label, LV_ALIGN_TOP_LEFT, 0, 20);
-
-        lv_obj_t *control = box(_page_content, control_width, control_height, LV_COLOR_MAKE(0x12, 0x12, 0x16), LV_OPA_80, 12);
-        if(narrow) {
-            lv_obj_align(control, LV_ALIGN_BOTTOM_MID, 0, -14);
-        } else {
-            lv_obj_align(control, LV_ALIGN_TOP_RIGHT, -side_margin, 70);
-        }
-        lv_obj_set_style_border_width(control, 1, 0);
-        lv_obj_set_style_border_color(control, LV_COLOR_MAKE(0x3a, 0x3a, 0x40), 0);
-        lv_obj_set_style_border_opa(control, LV_OPA_60, 0);
-
-        const lv_coord_t column_width = control_width / 2;
-        lv_obj_t *notify_text = cjk_label(control, "通知提醒", kText);
-        lv_obj_align(notify_text, LV_ALIGN_TOP_LEFT, 14, narrow ? 8 : 10);
-        lv_obj_t *notify_switch = lv_switch_create(control);
-        lv_obj_set_size(notify_switch, 42, 22);
-        if(narrow) {
-            lv_obj_set_pos(notify_switch, column_width - 56, 8);
-        } else {
-            lv_obj_align(notify_switch, LV_ALIGN_TOP_RIGHT, -12, 8);
-        }
-        lv_obj_set_style_bg_color(notify_switch, kYellow, LV_PART_INDICATOR | LV_STATE_CHECKED);
-        lv_obj_set_style_bg_color(notify_switch, kText, LV_PART_KNOB);
-        lv_obj_add_event_cb(notify_switch, onNotificationSwitchChanged, LV_EVENT_VALUE_CHANGED, this);
-        if(_notifications_enabled) {
-            lv_obj_add_state(notify_switch, LV_STATE_CHECKED);
-        }
-
-        lv_obj_t *tts_text = cjk_label(control, "文本转语音", kTextDim);
-        lv_obj_align(tts_text, LV_ALIGN_TOP_LEFT, narrow ? (column_width + 14) : 14, narrow ? 8 : 46);
-        lv_obj_t *tts_switch = lv_switch_create(control);
-        lv_obj_set_size(tts_switch, 42, 22);
-        lv_obj_align(tts_switch, LV_ALIGN_TOP_RIGHT, -12, narrow ? 8 : 44);
-        lv_obj_set_style_bg_color(tts_switch, kCyan, LV_PART_INDICATOR | LV_STATE_CHECKED);
-        lv_obj_set_style_bg_color(tts_switch, kText, LV_PART_KNOB);
-        lv_obj_add_event_cb(tts_switch, onTtsSwitchChanged, LV_EVENT_VALUE_CHANGED, this);
-        if(_tts_enabled) {
-            lv_obj_add_state(tts_switch, LV_STATE_CHECKED);
-        }
-
-        _notification_state_label = cjk_label(control, _notifications_enabled ? "开" : "关",
-                                             _notifications_enabled ? kYellow : kTextFaint);
-        _tts_state_label = cjk_label(control, _tts_enabled ? "开" : "关", _tts_enabled ? kCyan : kTextFaint);
-        if(narrow) {
-            lv_obj_align(_notification_state_label, LV_ALIGN_TOP_LEFT, 14, 39);
-            lv_obj_align(_tts_state_label, LV_ALIGN_TOP_LEFT, column_width + 14, 39);
-            lv_obj_t *divider = box(control, 1, control_height - 20, LV_COLOR_MAKE(0x3a, 0x3a, 0x40), LV_OPA_60, 0);
-            lv_obj_align(divider, LV_ALIGN_CENTER, 0, 0);
-        } else {
-            lv_obj_align_to(_notification_state_label, notify_switch, LV_ALIGN_OUT_LEFT_MID, -8, 0);
-            lv_obj_align_to(_tts_state_label, tts_switch, LV_ALIGN_OUT_LEFT_MID, -8, 0);
-        }
-
-        updateNotificationLabels();
-        updateNotificationBubbleLayout();
-        if(_notification_timer) {
-            lv_timer_resume(_notification_timer);
-        }
-        return;
-    }
-
-    const lv_coord_t margin = 48;
-    const lv_coord_t top = 128;
-    const lv_coord_t stack_width = 320;
-    const lv_coord_t stack_height = _view_height - 164;
-    const lv_coord_t panel_width = _width - stack_width - 3 * margin;
-    const lv_coord_t panel_height = 246;
-
-    lv_obj_t *title = cjk_label(_page_content, "通知提醒", kYellow);
-    lv_obj_align(title, LV_ALIGN_TOP_LEFT, margin, 82);
-
     _notification_stack = lv_obj_create(_page_content);
     set_plain(_notification_stack);
-    lv_obj_set_size(_notification_stack, stack_width, stack_height);
-    lv_obj_align(_notification_stack, LV_ALIGN_TOP_LEFT, margin, top);
+    lv_obj_set_size(_notification_stack, 280, 300);
+    lv_obj_align(_notification_stack, LV_ALIGN_TOP_LEFT, 16, 48);
     lv_obj_set_style_bg_opa(_notification_stack, LV_OPA_TRANSP, 0);
+    lv_obj_clear_flag(_notification_stack, LV_OBJ_FLAG_CLICKABLE);
 
-    _notification_empty_label = cjk_label(_notification_stack, "按 1/2/3 测试通知冒泡", kTextFaint);
-    lv_obj_align(_notification_empty_label, LV_ALIGN_TOP_LEFT, 0, compact ? 18 : 28);
+    lv_obj_t *empty_pill = box(_page_content, 248, 42, LV_COLOR_MAKE(0x11, 0x11, 0x14), LV_OPA_70, 21);
+    lv_obj_align(empty_pill, LV_ALIGN_CENTER, 0, 6);
+    lv_obj_set_style_border_width(empty_pill, 1, 0);
+    lv_obj_set_style_border_color(empty_pill, kWhite, 0);
+    lv_obj_set_style_border_opa(empty_pill, LV_OPA_10, 0);
 
-    lv_obj_t *panel = box(_page_content, panel_width, panel_height, LV_COLOR_MAKE(0x13, 0x13, 0x17), LV_OPA_COVER, 14);
-    lv_obj_align(panel, LV_ALIGN_TOP_RIGHT, -margin, top);
-    lv_obj_set_style_border_width(panel, 1, 0);
-    lv_obj_set_style_border_color(panel, LV_COLOR_MAKE(0x45, 0x46, 0x4d), 0);
-    lv_obj_set_style_border_opa(panel, LV_OPA_60, 0);
-
-    lv_obj_t *panel_title = cjk_label(panel, "测试控制", kText);
-    lv_obj_align(panel_title, LV_ALIGN_TOP_LEFT, 16, 14);
-
-    lv_obj_t *row_notify = create_toggle_row(panel, panel_width - 28, "通知提醒", "允许左侧弹窗显示",
-                                             _notifications_enabled, kYellow, onNotificationSwitchChanged, this,
-                                             &_notification_state_label);
-    lv_obj_set_pos(row_notify, 14, compact ? 42 : 54);
-
-    lv_obj_t *row_tts = create_toggle_row(panel, panel_width - 28, "文本转语音", "通知到达时播报摘要",
-                                          _tts_enabled, kCyan, onTtsSwitchChanged, this, &_tts_state_label);
-    lv_obj_set_pos(row_tts, 14, compact ? 96 : 118);
-
-    _notification_hint_label = cjk_label(panel, "1 微信   2 短信   3 钉钉", kTextDim);
-    lv_obj_align(_notification_hint_label, LV_ALIGN_BOTTOM_LEFT, 16, compact ? -10 : -22);
-
-    if(!compact) {
-        lv_obj_t *note = cjk_label(panel, "最新消息固定在顶部，旧消息向下推，10 秒后自动消失。", kTextFaint);
-        lv_obj_set_width(note, panel_width - 32);
-        lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
-        lv_obj_align(note, LV_ALIGN_BOTTOM_LEFT, 16, -52);
-    }
-
-    updateNotificationLabels();
+    _notification_empty_label = cjk_label(empty_pill, LV_SYMBOL_BELL "  按 1、2、3 键模拟新通知", kTextFaint);
+    lv_obj_center(_notification_empty_label);
     updateNotificationBubbleLayout();
     if(_notification_timer) {
+        lv_timer_set_period(_notification_timer, 100);
         lv_timer_resume(_notification_timer);
     }
 }
@@ -1202,7 +1050,9 @@ void LensReactUI::clearNotificationBubbles(void)
             lv_obj_del(bubble.obj);
             bubble.obj = nullptr;
         }
-        bubble.age_seconds = 0;
+        bubble.timeline = {};
+        bubble.fade_started = false;
+        bubble.exit_started = false;
     }
 }
 
@@ -1212,33 +1062,24 @@ void LensReactUI::triggerNotification(uint8_t type)
         const char *source;
         const char *sender;
         const char *message;
+        const char *icon;
         lv_color_t accent;
     };
     const NotificationSample samples[] = {
-        {"微信", "产品群", "王工：通知提醒测试已发送。", kGreen},
-        {"短信", "中国移动", "验证码 482916，5 分钟内有效。", kBlue},
-        {"钉钉", "项目会议", "15:30 评审会即将开始。", kCyan},
+        {"微信", "张三", "晚饭定在科技园那家日料店了。", LV_SYMBOL_BELL, kGreen},
+        {"短信", "中国移动", "验证码 482916，5 分钟内有效。", LV_SYMBOL_CALL, kBlue},
+        {"钉钉", "项目会议", "15:30 产品评审会即将开始。", LV_SYMBOL_LIST, kOrange},
     };
 
     if(type >= (sizeof(samples) / sizeof(samples[0]))) {
         return;
     }
-    if(!_notifications_enabled) {
-        if(_notification_hint_label) {
-            lv_label_set_text(_notification_hint_label, "通知提醒已关闭，打开 switch 后再测试");
-            lv_obj_set_style_text_color(_notification_hint_label, kRed, 0);
-        }
-        return;
-    }
-
-    addNotificationBubble(samples[type].source, samples[type].sender, samples[type].message, samples[type].accent);
-    if(_notification_hint_label) {
-        lv_label_set_text(_notification_hint_label, _tts_enabled ? "已显示并播报摘要" : "已显示通知冒泡");
-        lv_obj_set_style_text_color(_notification_hint_label, samples[type].accent, 0);
-    }
+    addNotificationBubble(samples[type].source, samples[type].sender, samples[type].message, samples[type].icon,
+                          samples[type].accent);
 }
 
-void LensReactUI::addNotificationBubble(const char *source, const char *sender, const char *message, lv_color_t accent)
+void LensReactUI::addNotificationBubble(const char *source, const char *sender, const char *message, const char *icon,
+                                        lv_color_t accent)
 {
     if(_notification_stack == nullptr) {
         return;
@@ -1252,50 +1093,51 @@ void LensReactUI::addNotificationBubble(const char *source, const char *sender, 
     }
     _notification_bubbles[0] = {};
 
-    const bool compact = _view_height <= kCompactViewMaxHeight;
-    const lv_coord_t bubble_width = lv_obj_get_width(_notification_stack);
-    const lv_coord_t bubble_height = compact ? 46 : 70;
+    const lv_coord_t bubble_width = 260;
+    const lv_coord_t bubble_height = 60;
     lv_obj_t *bubble = box(_notification_stack, bubble_width, bubble_height,
-                           LV_COLOR_MAKE(0x18, 0x18, 0x1c), LV_OPA_COVER, compact ? 12 : 14);
+                           LV_COLOR_MAKE(0x0d, 0x0e, 0x11), LV_OPA_80, 15);
     lv_obj_set_style_border_width(bubble, 1, 0);
-    lv_obj_set_style_border_color(bubble, accent, 0);
-    lv_obj_set_style_border_opa(bubble, LV_OPA_70, 0);
-    lv_obj_set_style_shadow_width(bubble, compact ? 8 : 12, 0);
+    lv_obj_set_style_border_color(bubble, kWhite, 0);
+    lv_obj_set_style_border_opa(bubble, LV_OPA_20, 0);
+    lv_obj_set_style_shadow_width(bubble, 14, 0);
     lv_obj_set_style_shadow_color(bubble, kBlack, 0);
-    lv_obj_set_style_shadow_opa(bubble, LV_OPA_40, 0);
+    lv_obj_set_style_shadow_opa(bubble, LV_OPA_50, 0);
 
-    lv_obj_t *badge = box(bubble, compact ? 34 : 42, compact ? 22 : 26, accent, LV_OPA_20, 8);
-    lv_obj_align(badge, LV_ALIGN_TOP_LEFT, compact ? 8 : 12, compact ? 7 : 10);
+    lv_obj_t *badge = box(bubble, 40, 40, accent, LV_OPA_20, 10);
+    lv_obj_set_pos(badge, 10, 10);
     lv_obj_set_style_border_width(badge, 1, 0);
     lv_obj_set_style_border_color(badge, accent, 0);
-    lv_obj_t *badge_text = cjk_label(badge, source, accent);
-    lv_obj_center(badge_text);
+    lv_obj_set_style_border_opa(badge, LV_OPA_40, 0);
+    lv_obj_t *badge_icon = label(badge, icon, &lv_font_montserrat_16, accent);
+    lv_obj_center(badge_icon);
 
-    lv_obj_t *sender_label = cjk_label(bubble, sender, kText);
-    lv_obj_align(sender_label, LV_ALIGN_TOP_LEFT, compact ? 50 : 64, compact ? 8 : 12);
+    lv_obj_t *sender_label = label(bubble, sender, &smartglass_font_14_cjk, kText);
+    lv_obj_set_pos(sender_label, 62, 8);
 
-    lv_obj_t *message_label = cjk_label(bubble, message, kTextDim);
-    lv_obj_set_width(message_label, bubble_width - (compact ? 66 : 84));
+    lv_obj_t *message_label = label(bubble, message, &smartglass_font_12_cjk, kTextDim);
+    lv_obj_set_width(message_label, bubble_width - 74);
     lv_label_set_long_mode(message_label, LV_LABEL_LONG_DOT);
-    lv_obj_align(message_label, LV_ALIGN_TOP_LEFT, compact ? 50 : 64, compact ? 27 : 36);
+    lv_obj_set_pos(message_label, 62, 32);
 
-    if(!compact) {
-        lv_obj_t *tts = cjk_label(bubble, _tts_enabled ? "TTS 已播报" : "仅镜片显示", _tts_enabled ? kCyan : kTextFaint);
-        lv_obj_align(tts, LV_ALIGN_TOP_RIGHT, -14, 12);
-    }
+    lv_obj_t *source_label = label(bubble, source, &smartglass_font_12_cjk, kTextFaint);
+    lv_obj_align(source_label, LV_ALIGN_TOP_RIGHT, -10, 9);
 
     _notification_bubbles[0].obj = bubble;
-    _notification_bubbles[0].age_seconds = 0;
+    resetNotificationTimeline(_notification_bubbles[0].timeline);
     updateNotificationBubbleLayout();
+    if(_notification_bubbles[kMaxNotificationBubbles - 1].obj) {
+        startNotificationBubbleExit(kMaxNotificationBubbles - 1);
+    }
 
-    lv_obj_set_x(bubble, compact ? -18 : -28);
+    lv_obj_set_x(bubble, -bubble_width - 20);
     lv_obj_set_style_opa(bubble, LV_OPA_TRANSP, 0);
 
     lv_anim_t slide;
     lv_anim_init(&slide);
     lv_anim_set_var(&slide, bubble);
     lv_anim_set_values(&slide, lv_obj_get_x(bubble), 0);
-    lv_anim_set_time(&slide, 180);
+    lv_anim_set_time(&slide, 200);
     lv_anim_set_path_cb(&slide, lv_anim_path_ease_out);
     lv_anim_set_exec_cb(&slide, onAnimX);
     lv_anim_start(&slide);
@@ -1304,7 +1146,61 @@ void LensReactUI::addNotificationBubble(const char *source, const char *sender, 
     lv_anim_init(&fade);
     lv_anim_set_var(&fade, bubble);
     lv_anim_set_values(&fade, LV_OPA_TRANSP, LV_OPA_COVER);
-    lv_anim_set_time(&fade, 140);
+    lv_anim_set_time(&fade, 200);
+    lv_anim_set_exec_cb(&fade, onAnimOpa);
+    lv_anim_start(&fade);
+}
+
+void LensReactUI::startNotificationBubbleFade(uint8_t index)
+{
+    if(index >= kMaxNotificationBubbles) {
+        return;
+    }
+    auto &item = _notification_bubbles[index];
+    if(item.obj == nullptr || item.fade_started || item.exit_started) {
+        return;
+    }
+    item.fade_started = true;
+
+    lv_anim_t fade;
+    lv_anim_init(&fade);
+    lv_anim_set_var(&fade, item.obj);
+    lv_anim_set_values(&fade, lv_obj_get_style_opa(item.obj, 0), LV_OPA_60);
+    lv_anim_set_time(&fade, 1000);
+    lv_anim_set_path_cb(&fade, lv_anim_path_linear);
+    lv_anim_set_exec_cb(&fade, onAnimOpa);
+    lv_anim_start(&fade);
+}
+
+void LensReactUI::startNotificationBubbleExit(uint8_t index)
+{
+    if(index >= kMaxNotificationBubbles) {
+        return;
+    }
+    auto &item = _notification_bubbles[index];
+    if(item.obj == nullptr || item.exit_started) {
+        return;
+    }
+    item.exit_started = true;
+    forceExitNotificationTimeline(item.timeline);
+    lv_anim_del(item.obj, onAnimX);
+    lv_anim_del(item.obj, onAnimOpa);
+
+    lv_anim_t slide;
+    lv_anim_init(&slide);
+    lv_anim_set_var(&slide, item.obj);
+    lv_anim_set_values(&slide, lv_obj_get_x(item.obj), -280);
+    lv_anim_set_time(&slide, 240);
+    lv_anim_set_path_cb(&slide, lv_anim_path_ease_in);
+    lv_anim_set_exec_cb(&slide, onAnimX);
+    lv_anim_start(&slide);
+
+    lv_anim_t fade;
+    lv_anim_init(&fade);
+    lv_anim_set_var(&fade, item.obj);
+    lv_anim_set_values(&fade, lv_obj_get_style_opa(item.obj, 0), LV_OPA_TRANSP);
+    lv_anim_set_time(&fade, 240);
+    lv_anim_set_path_cb(&fade, lv_anim_path_ease_in);
     lv_anim_set_exec_cb(&fade, onAnimOpa);
     lv_anim_start(&fade);
 }
@@ -1324,9 +1220,8 @@ void LensReactUI::removeNotificationBubble(uint8_t index)
 
 void LensReactUI::updateNotificationBubbleLayout(void)
 {
-    const bool compact = _view_height <= kCompactViewMaxHeight;
-    const lv_coord_t bubble_height = compact ? 46 : 70;
-    const lv_coord_t gap = compact ? 7 : 10;
+    constexpr lv_coord_t bubble_height = 60;
+    constexpr lv_coord_t gap = 12;
     bool has_bubbles = false;
 
     for(uint8_t i = 0; i < kMaxNotificationBubbles; ++i) {
@@ -1336,7 +1231,7 @@ void LensReactUI::updateNotificationBubbleLayout(void)
         }
         has_bubbles = true;
         const lv_coord_t target_y = i * (bubble_height + gap);
-        if(lv_obj_get_y(bubble) != target_y) {
+        if(!_notification_bubbles[i].exit_started && lv_obj_get_y(bubble) != target_y) {
             lv_anim_t move;
             lv_anim_init(&move);
             lv_anim_set_var(&move, bubble);
@@ -1346,33 +1241,15 @@ void LensReactUI::updateNotificationBubbleLayout(void)
             lv_anim_set_exec_cb(&move, onAnimY);
             lv_anim_start(&move);
         }
-        lv_obj_set_x(bubble, 0);
-        lv_obj_set_style_opa(bubble, i == 0 ? LV_OPA_COVER : LV_OPA_80, 0);
     }
 
     if(_notification_empty_label) {
+        lv_obj_t *empty_pill = lv_obj_get_parent(_notification_empty_label);
         if(has_bubbles) {
-            lv_obj_add_flag(_notification_empty_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(empty_pill, LV_OBJ_FLAG_HIDDEN);
         } else {
-            lv_obj_clear_flag(_notification_empty_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(empty_pill, LV_OBJ_FLAG_HIDDEN);
         }
-    }
-}
-
-void LensReactUI::updateNotificationLabels(void)
-{
-    const bool compact = _view_height <= kCompactViewMaxHeight;
-    if(_notification_state_label) {
-        lv_label_set_text(_notification_state_label, _notifications_enabled ? (compact ? "开" : "开启") : (compact ? "关" : "关闭"));
-        lv_obj_set_style_text_color(_notification_state_label, _notifications_enabled ? kYellow : kTextFaint, 0);
-    }
-    if(_tts_state_label) {
-        lv_label_set_text(_tts_state_label, _tts_enabled ? (compact ? "开" : "开启") : (compact ? "关" : "关闭"));
-        lv_obj_set_style_text_color(_tts_state_label, _tts_enabled ? kCyan : kTextFaint, 0);
-    }
-    if(_notification_hint_label) {
-        lv_label_set_text(_notification_hint_label, "1 微信   2 短信   3 钉钉");
-        lv_obj_set_style_text_color(_notification_hint_label, kTextDim, 0);
     }
 }
 
@@ -1735,12 +1612,21 @@ void LensReactUI::onNotificationTimer(lv_timer_t *timer)
         return;
     }
     for(uint8_t i = 0; i < kMaxNotificationBubbles;) {
-        if(app->_notification_bubbles[i].obj == nullptr) {
+        auto &item = app->_notification_bubbles[i];
+        if(item.obj == nullptr) {
             ++i;
             continue;
         }
-        app->_notification_bubbles[i].age_seconds++;
-        if(app->_notification_bubbles[i].age_seconds >= 10) {
+        const NotificationPhase previous_phase = item.timeline.phase;
+        stepNotificationTimeline(item.timeline, 100);
+        if(previous_phase != item.timeline.phase) {
+            if(item.timeline.phase == NotificationPhase::Fading) {
+                app->startNotificationBubbleFade(i);
+            } else if(item.timeline.phase == NotificationPhase::Exiting) {
+                app->startNotificationBubbleExit(i);
+            }
+        }
+        if(item.timeline.removable) {
             app->removeNotificationBubble(i);
             continue;
         }
@@ -1844,40 +1730,6 @@ void LensReactUI::onOverlayDismissed(lv_event_t *event)
     auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
     if(app) {
         app->hideAssistantOverlay();
-    }
-}
-
-void LensReactUI::onNotificationSwitchChanged(lv_event_t *event)
-{
-    auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
-    lv_obj_t *target = lv_event_get_target(event);
-    if(app == nullptr || target == nullptr) {
-        return;
-    }
-    app->_notifications_enabled = lv_obj_has_state(target, LV_STATE_CHECKED);
-    if(!app->_notifications_enabled) {
-        app->clearNotificationBubbles();
-        app->updateNotificationBubbleLayout();
-    }
-    app->updateNotificationLabels();
-    lv_group_t *group = lv_group_get_default();
-    if(group && app->_root) {
-        lv_group_focus_obj(app->_root);
-    }
-}
-
-void LensReactUI::onTtsSwitchChanged(lv_event_t *event)
-{
-    auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
-    lv_obj_t *target = lv_event_get_target(event);
-    if(app == nullptr || target == nullptr) {
-        return;
-    }
-    app->_tts_enabled = lv_obj_has_state(target, LV_STATE_CHECKED);
-    app->updateNotificationLabels();
-    lv_group_t *group = lv_group_get_default();
-    if(group && app->_root) {
-        lv_group_focus_obj(app->_root);
     }
 }
 
