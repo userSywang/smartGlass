@@ -1,5 +1,6 @@
 build/
 out/
+.font-cache/
 
 # CMake generated files that may be created outside build/
 CMakeFiles/

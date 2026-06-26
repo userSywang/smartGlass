@@ -12,7 +12,10 @@
 LV_FONT_DECLARE(smartglass_font_16_cjk);
 LV_FONT_DECLARE(smartglass_font_14_cjk);
 LV_FONT_DECLARE(smartglass_font_12_cjk);
+LV_FONT_DECLARE(smartglass_font_20_cjk);
 LV_FONT_DECLARE(nav_font_72_digits);
+LV_IMG_DECLARE(assistant_bot_icon);
+LV_IMG_DECLARE(camera_shutter_button);
 LV_IMG_DECLARE(nav_bicycle_icon);
 LV_IMG_DECLARE(nav_flag_icon);
 LV_IMG_DECLARE(nav_bicycle);
@@ -55,12 +58,21 @@ constexpr lv_coord_t kStatusBarHeight = 30;
 constexpr lv_coord_t kPageBottomSafeArea = 0;
 constexpr lv_coord_t kCompactViewMaxHeight = 360;
 constexpr lv_coord_t kCompactContentTop = 38;
+constexpr uint32_t kAssistantWakeKey = 'a';
 
 struct TileDef {
     const char *id;
     const char *name;
     const char *symbol;
     lv_color_t color;
+};
+
+struct MusicTrack {
+    const char *title;
+    const char *artist;
+    uint16_t duration_seconds;
+    lv_color_t cover_start;
+    lv_color_t cover_end;
 };
 
 const TileDef kApps[] = {
@@ -74,6 +86,14 @@ const TileDef kApps[] = {
     {"settings", "设置", LV_SYMBOL_SETTINGS, kTextDim},
     {"assistant", "小智", LV_SYMBOL_BELL, kPurple},
 };
+
+const MusicTrack kMusicTracks[] = {
+    {"Cyberpunk City", "Synthwave Maker", 222, LV_COLOR_MAKE(0xc0, 0x4b, 0xf5), LV_COLOR_MAKE(0x18, 0xb7, 0xd5)},
+    {"Night Drive", "Neon Pulse", 196, LV_COLOR_MAKE(0x36, 0x60, 0xf6), LV_COLOR_MAKE(0x34, 0xd3, 0x99)},
+    {"Glass Horizon", "Ambient Lab", 248, LV_COLOR_MAKE(0xf4, 0x73, 0xb9), LV_COLOR_MAKE(0xf5, 0x9e, 0x0b)},
+};
+
+constexpr uint8_t kMusicTrackCount = sizeof(kMusicTracks) / sizeof(kMusicTracks[0]);
 
 const lv_font_t *font_or_default(const lv_font_t *font)
 {
@@ -98,6 +118,12 @@ lv_obj_t *label(lv_obj_t *parent, const char *text, const lv_font_t *font, lv_co
 lv_obj_t *cjk_label(lv_obj_t *parent, const char *text, lv_color_t color)
 {
     return label(parent, text, &smartglass_font_16_cjk, color);
+}
+
+void format_time(char *buffer, size_t buffer_size, uint16_t seconds)
+{
+    std::snprintf(buffer, buffer_size, "%u:%02u", static_cast<unsigned>(seconds / 60),
+                  static_cast<unsigned>(seconds % 60));
 }
 
 lv_obj_t *box(lv_obj_t *parent, lv_coord_t w, lv_coord_t h, lv_color_t bg, lv_opa_t opa, lv_coord_t radius)
@@ -287,6 +313,9 @@ bool LensReactUI::run(void)
     _mic_timer = lv_timer_create(onMicTimer, 650, this);
     _navigation_timer = lv_timer_create(onNavigationTimer, 1000, this);
     _notification_timer = lv_timer_create(onNotificationTimer, 1000, this);
+    _translate_timer = lv_timer_create(onTranslateTimer, 100, this);
+    _music_timer = lv_timer_create(onMusicTimer, 1000, this);
+    _camera_timer = lv_timer_create(onCameraTimer, 1000, this);
     if(_prompt_timer) {
         lv_timer_pause(_prompt_timer);
     }
@@ -298,6 +327,15 @@ bool LensReactUI::run(void)
     }
     if(_notification_timer) {
         lv_timer_pause(_notification_timer);
+    }
+    if(_translate_timer) {
+        lv_timer_pause(_translate_timer);
+    }
+    if(_music_timer) {
+        lv_timer_pause(_music_timer);
+    }
+    if(_camera_timer) {
+        lv_timer_pause(_camera_timer);
     }
 
     return true;
@@ -338,7 +376,20 @@ bool LensReactUI::close(void)
         lv_timer_del(_notification_timer);
         _notification_timer = nullptr;
     }
+    if(_translate_timer) {
+        lv_timer_del(_translate_timer);
+        _translate_timer = nullptr;
+    }
+    if(_music_timer) {
+        lv_timer_del(_music_timer);
+        _music_timer = nullptr;
+    }
+    if(_camera_timer) {
+        lv_timer_del(_camera_timer);
+        _camera_timer = nullptr;
+    }
     clearNotificationBubbles();
+    clearTranslateItems();
     if(_root) {
         lv_obj_del(_root);
         _root = nullptr;
@@ -355,8 +406,25 @@ bool LensReactUI::close(void)
     _battery_label = nullptr;
     _battery_fill = nullptr;
     _assistant_overlay = nullptr;
+    _assistant_panel = nullptr;
+    for(auto &bar : _assistant_wave_bars) {
+        bar = nullptr;
+    }
     _notification_stack = nullptr;
     _notification_empty_label = nullptr;
+    _translate_stack = nullptr;
+    _translate_empty = nullptr;
+    _music_cover = nullptr;
+    _music_title = nullptr;
+    _music_artist = nullptr;
+    _music_elapsed_label = nullptr;
+    _music_duration_label = nullptr;
+    _music_progress_fill = nullptr;
+    _music_play_icon = nullptr;
+    _camera_recording_pill = nullptr;
+    _camera_recording_label = nullptr;
+    _camera_toast = nullptr;
+    _camera_toast_label = nullptr;
     return true;
 }
 
@@ -628,6 +696,10 @@ void LensReactUI::showApp(uint8_t index)
     if(index >= kAppCount) {
         return;
     }
+    if(index == 8) {
+        showAssistantOverlay();
+        return;
+    }
     hideAssistantOverlay();
     _current_app = static_cast<int8_t>(index);
     if(_home) {
@@ -711,6 +783,7 @@ void LensReactUI::rebuildPage(void)
 void LensReactUI::clearPageContent(void)
 {
     clearNotificationBubbles();
+    clearTranslateItems();
     if(_page_content) {
         lv_obj_clean(_page_content);
     }
@@ -730,8 +803,32 @@ void LensReactUI::clearPageContent(void)
     if(_notification_timer) {
         lv_timer_pause(_notification_timer);
     }
+    if(_translate_timer) {
+        lv_timer_pause(_translate_timer);
+    }
+    if(_music_timer) {
+        lv_timer_pause(_music_timer);
+    }
+    if(_camera_timer) {
+        lv_timer_pause(_camera_timer);
+    }
     _notification_stack = nullptr;
     _notification_empty_label = nullptr;
+    _translate_stack = nullptr;
+    _translate_empty = nullptr;
+    _music_cover = nullptr;
+    _music_title = nullptr;
+    _music_artist = nullptr;
+    _music_elapsed_label = nullptr;
+    _music_duration_label = nullptr;
+    _music_progress_fill = nullptr;
+    _music_play_icon = nullptr;
+    _camera_recording_pill = nullptr;
+    _camera_recording_label = nullptr;
+    _camera_toast = nullptr;
+    _camera_toast_label = nullptr;
+    _camera_recording = false;
+    _camera_toast_remaining_ms = 0;
     _nav_direction_img = nullptr;
     _nav_distance_label = nullptr;
     _nav_speed_label = nullptr;
@@ -747,44 +844,143 @@ void LensReactUI::clearPageContent(void)
 
 void LensReactUI::createCameraPage(void)
 {
-    if(_view_height <= kCompactViewMaxHeight) {
-        const lv_coord_t frame_width = _view_width - 40;
-        const lv_coord_t frame_height = lv_obj_get_height(_page_content) - kCompactContentTop - 18;
-        lv_obj_t *frame = box(_page_content, frame_width, frame_height, kBlack, LV_OPA_COVER, 0);
-        lv_obj_align(frame, LV_ALIGN_TOP_MID, 0, kCompactContentTop);
+    const bool compact = _view_height <= kCompactViewMaxHeight;
+    const lv_coord_t inset = compact ? 18 : 28;
+    const lv_coord_t frame_width = _view_width - inset * 2;
+    const lv_coord_t frame_height = _view_height - (compact ? 54 : 76);
+    lv_obj_t *frame = box(_page_content, frame_width, frame_height, LV_COLOR_MAKE(0x12, 0x13, 0x12), LV_OPA_COVER,
+                          compact ? 20 : 26);
+    lv_obj_align(frame, LV_ALIGN_TOP_MID, 0, compact ? 34 : 44);
+    lv_obj_add_flag(frame, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(frame, onCameraGesture, LV_EVENT_SHORT_CLICKED, this);
+    lv_obj_add_event_cb(frame, onCameraGesture, LV_EVENT_LONG_PRESSED, this);
+    lv_obj_add_event_cb(frame, onCameraGesture, LV_EVENT_RELEASED, this);
 
-        add_camera_corner(frame, LV_ALIGN_TOP_LEFT, false, false, 24, 2, 0, kText, LV_OPA_COVER);
-        add_camera_corner(frame, LV_ALIGN_TOP_RIGHT, true, false, 24, 2, 0, kText, LV_OPA_COVER);
-        add_camera_corner(frame, LV_ALIGN_BOTTOM_LEFT, false, true, 24, 2, 0, kText, LV_OPA_COVER);
-        add_camera_corner(frame, LV_ALIGN_BOTTOM_RIGHT, true, true, 24, 2, 0, kText, LV_OPA_COVER);
+    lv_obj_t *focus = box(frame, compact ? 58 : 72, compact ? 58 : 72, kBlack, LV_OPA_TRANSP, 0);
+    lv_obj_align(focus, LV_ALIGN_CENTER, 0, compact ? 2 : 4);
+    add_camera_corner(focus, LV_ALIGN_TOP_LEFT, false, false, compact ? 18 : 22, 3, 0, kText, LV_OPA_80);
+    add_camera_corner(focus, LV_ALIGN_TOP_RIGHT, true, false, compact ? 18 : 22, 3, 0, kText, LV_OPA_80);
+    add_camera_corner(focus, LV_ALIGN_BOTTOM_LEFT, false, true, compact ? 18 : 22, 3, 0, kText, LV_OPA_80);
+    add_camera_corner(focus, LV_ALIGN_BOTTOM_RIGHT, true, true, compact ? 18 : 22, 3, 0, kText, LV_OPA_80);
+    lv_obj_t *focus_dot = box(focus, compact ? 16 : 18, compact ? 16 : 18, kText, LV_OPA_30, LV_RADIUS_CIRCLE);
+    lv_obj_center(focus_dot);
+    lv_obj_set_style_border_width(focus_dot, 3, 0);
+    lv_obj_set_style_border_color(focus_dot, kText, 0);
+    lv_obj_set_style_border_opa(focus_dot, LV_OPA_80, 0);
 
-        lv_obj_t *hint = label(frame, "Tap photo   Double video", &lv_font_montserrat_14, kText);
-        lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -14);
+    lv_obj_t *left_info = label(frame, "ISO 400\n1/60s", &lv_font_montserrat_12, LV_COLOR_MAKE(0xdb, 0xdc, 0xd8));
+    lv_obj_align(left_info, LV_ALIGN_BOTTOM_LEFT, compact ? 22 : 24, compact ? -36 : -40);
+    lv_obj_set_style_text_line_space(left_info, 8, 0);
 
+    lv_obj_t *right_info = label(frame, "f/1.8\n4K 60FPS", &lv_font_montserrat_12, LV_COLOR_MAKE(0xdb, 0xdc, 0xd8));
+    lv_obj_align(right_info, LV_ALIGN_BOTTOM_RIGHT, compact ? -22 : -24, compact ? -36 : -40);
+    lv_obj_set_style_text_align(right_info, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_style_text_line_space(right_info, 8, 0);
+
+    lv_obj_t *shutter = lv_img_create(frame);
+    lv_img_set_src(shutter, &camera_shutter_button);
+    style_no_frame(shutter);
+    lv_obj_align(shutter, LV_ALIGN_BOTTOM_MID, 0, compact ? -28 : -34);
+    lv_obj_add_flag(shutter, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(shutter, onCameraGesture, LV_EVENT_SHORT_CLICKED, this);
+    lv_obj_add_event_cb(shutter, onCameraGesture, LV_EVENT_LONG_PRESSED, this);
+    lv_obj_add_event_cb(shutter, onCameraGesture, LV_EVENT_RELEASED, this);
+
+    lv_obj_t *hint = cjk_label(frame, "双击拍照 · 长按录像", LV_COLOR_MAKE(0xdb, 0xdc, 0xd8));
+    lv_obj_set_width(hint, frame_width - 140);
+    lv_label_set_long_mode(hint, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(hint, LV_COLOR_MAKE(0xdb, 0xdc, 0xd8), 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, compact ? -4 : -8);
+
+    _camera_recording_pill = box(frame, compact ? 116 : 128, 34, kBlack, LV_OPA_70, 17);
+    lv_obj_align(_camera_recording_pill, LV_ALIGN_TOP_MID, 0, compact ? 30 : 46);
+    lv_obj_t *rec_dot = box(_camera_recording_pill, 8, 8, kRed, LV_OPA_COVER, LV_RADIUS_CIRCLE);
+    lv_obj_align(rec_dot, LV_ALIGN_LEFT_MID, 16, 0);
+    _camera_recording_label = label(_camera_recording_pill, "00:00:00", &lv_font_montserrat_14, kText);
+    lv_obj_align(_camera_recording_label, LV_ALIGN_LEFT_MID, 32, 0);
+    lv_obj_add_flag(_camera_recording_pill, LV_OBJ_FLAG_HIDDEN);
+
+    _camera_toast = box(frame, compact ? 180 : 220, 50, kBlack, LV_OPA_70, 18);
+    lv_obj_align(_camera_toast, LV_ALIGN_CENTER, 0, compact ? -72 : -96);
+    lv_obj_set_style_border_width(_camera_toast, 1, 0);
+    lv_obj_set_style_border_color(_camera_toast, kWhite, 0);
+    lv_obj_set_style_border_opa(_camera_toast, LV_OPA_20, 0);
+    _camera_toast_label = cjk_label(_camera_toast, "照片已保存", kText);
+    lv_obj_center(_camera_toast_label);
+    lv_obj_add_flag(_camera_toast, LV_OBJ_FLAG_HIDDEN);
+
+    updateCameraPage();
+    if(_camera_timer) {
+        lv_timer_resume(_camera_timer);
+    }
+}
+
+void LensReactUI::updateCameraPage(void)
+{
+    if(_camera_recording_pill == nullptr || _camera_recording_label == nullptr) {
         return;
     }
+    if(_camera_recording) {
+        lv_obj_clear_flag(_camera_recording_pill, LV_OBJ_FLAG_HIDDEN);
+        char duration[16];
+        std::snprintf(duration, sizeof(duration), "00:%02u:%02u",
+                      static_cast<unsigned>(_camera_record_seconds / 60),
+                      static_cast<unsigned>(_camera_record_seconds % 60));
+        lv_label_set_text(_camera_recording_label, duration);
+    } else {
+        lv_obj_add_flag(_camera_recording_pill, LV_OBJ_FLAG_HIDDEN);
+    }
+}
 
-    lv_obj_t *frame = box(_page_content, _width - 104, _height - 170, kBlack, LV_OPA_COVER, 0);
-    lv_obj_center(frame);
+void LensReactUI::captureCameraPhoto(void)
+{
+    showCameraToast("照片已保存");
+}
 
-    add_camera_corner(frame, LV_ALIGN_TOP_LEFT, false, false, 44, 3, 0, kText, LV_OPA_COVER);
-    add_camera_corner(frame, LV_ALIGN_TOP_RIGHT, true, false, 44, 3, 0, kText, LV_OPA_COVER);
-    add_camera_corner(frame, LV_ALIGN_BOTTOM_LEFT, false, true, 44, 3, 0, kText, LV_OPA_COVER);
-    add_camera_corner(frame, LV_ALIGN_BOTTOM_RIGHT, true, true, 44, 3, 0, kText, LV_OPA_COVER);
+void LensReactUI::startCameraRecording(void)
+{
+    if(_camera_recording) {
+        return;
+    }
+    _camera_recording = true;
+    _camera_record_seconds = 0;
+    updateCameraPage();
+}
 
-    lv_obj_t *hint = label(_page_content, "Tap photo   Double video", &lv_font_montserrat_16, kText);
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, -166);
+void LensReactUI::finishCameraRecording(void)
+{
+    if(!_camera_recording) {
+        return;
+    }
+    char toast[48];
+    std::snprintf(toast, sizeof(toast), "录像已保存 00:%02u:%02u",
+                  static_cast<unsigned>(_camera_record_seconds / 60),
+                  static_cast<unsigned>(_camera_record_seconds % 60));
+    _camera_recording = false;
+    updateCameraPage();
+    showCameraToast(toast);
+}
 
-    lv_obj_t *bar = lv_obj_create(_page_content);
-    set_plain(bar);
-    lv_obj_set_size(bar, 240, 84);
-    lv_obj_align(bar, LV_ALIGN_BOTTOM_MID, 0, -72);
-    lv_obj_set_style_bg_opa(bar, LV_OPA_TRANSP, 0);
-
-    lv_obj_t *small = box(bar, 48, 48, kPanel, LV_OPA_COVER, LV_RADIUS_CIRCLE);
-    lv_obj_align(small, LV_ALIGN_RIGHT_MID, 0, 0);
-    lv_obj_t *cam = label(small, LV_SYMBOL_IMAGE, &lv_font_montserrat_24, kTextDim);
-    lv_obj_center(cam);
+void LensReactUI::showCameraToast(const char *text)
+{
+    if(_camera_toast == nullptr || _camera_toast_label == nullptr) {
+        return;
+    }
+    lv_label_set_text(_camera_toast_label, text);
+    lv_anim_del(_camera_toast, onAnimOpa);
+    lv_obj_clear_flag(_camera_toast, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_style_opa(_camera_toast, LV_OPA_TRANSP, 0);
+    lv_obj_move_foreground(_camera_toast);
+    lv_anim_t fade;
+    lv_anim_init(&fade);
+    lv_anim_set_var(&fade, _camera_toast);
+    lv_anim_set_values(&fade, LV_OPA_TRANSP, LV_OPA_COVER);
+    lv_anim_set_time(&fade, 180);
+    lv_anim_set_path_cb(&fade, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&fade, onAnimOpa);
+    lv_anim_start(&fade);
+    _camera_toast_remaining_ms = 3000;
 }
 
 void LensReactUI::createNotesPage(void)
@@ -894,13 +1090,19 @@ void LensReactUI::createNavigationPage(void)
     _nav_speed_label = label(_page_content, "35", &lv_font_montserrat_38, kHudGreen);
     align_hud_bottom(_nav_speed_label, 664);
 
-    lv_obj_t *speed_unit = label(_page_content, "Km/h", &lv_font_montserrat_16, kHudGreen);
+    lv_obj_t *speed_unit = label(_page_content, "km/h", &lv_font_montserrat_16, kHudGreen);
     align_hud_bottom(speed_unit, 721);
 
     lv_obj_t *separator_right = label(_page_content, "/", &lv_font_montserrat_38, LV_COLOR_MAKE(0x14, 0x74, 0x43));
     align_hud_bottom(separator_right, 775);
 
-    lv_obj_t *remain = cjk_label(_page_content, "剩余: 2.8公里", LV_COLOR_MAKE(0x86, 0xef, 0xac));
+    lv_obj_t *remain = box(_page_content, 126, 24, kBlack, LV_OPA_TRANSP, 0);
+    lv_obj_t *remain_prefix = cjk_label(remain, "剩余：", LV_COLOR_MAKE(0x86, 0xef, 0xac));
+    lv_obj_set_pos(remain_prefix, 0, 3);
+    lv_obj_t *remain_value = label(remain, "2.8", &lv_font_montserrat_16, LV_COLOR_MAKE(0x86, 0xef, 0xac));
+    lv_obj_set_pos(remain_value, 56, 4);
+    lv_obj_t *remain_unit = cjk_label(remain, "公里", LV_COLOR_MAKE(0x86, 0xef, 0xac));
+    lv_obj_set_pos(remain_unit, 86, 3);
     align_hud_bottom(remain, 824);
 
     lv_obj_t *flag = lv_img_create(_page_content);
@@ -1007,7 +1209,7 @@ void LensReactUI::updateNavigationPage(void)
         if(_navigation_state.light_distance > 0) {
             std::snprintf(value, sizeof(value), "前方红灯 %dm", _navigation_state.light_distance);
         } else {
-            std::snprintf(value, sizeof(value), "路口红灯停止");
+            std::snprintf(value, sizeof(value), "红灯，请停止");
         }
         lv_label_set_text(_nav_traffic_title, value);
         std::snprintf(value, sizeof(value), "%ds", _navigation_state.light_countdown);
@@ -1255,50 +1457,146 @@ void LensReactUI::updateNotificationBubbleLayout(void)
 
 void LensReactUI::createMusicPage(void)
 {
-    if(_view_height <= kCompactViewMaxHeight) {
-        lv_obj_t *cover = box(_page_content, 104, 104, kRed, LV_OPA_COVER, 14);
-        lv_obj_align(cover, LV_ALIGN_LEFT_MID, 40, 12);
-        lv_obj_set_style_bg_grad_color(cover, kOrange, 0);
-        lv_obj_set_style_bg_grad_dir(cover, LV_GRAD_DIR_VER, 0);
-        lv_obj_t *music = label(cover, LV_SYMBOL_AUDIO, &lv_font_montserrat_34, LV_COLOR_MAKE(0xff, 0xdf, 0xdf));
-        lv_obj_center(music);
+    const bool compact = _view_height <= kCompactViewMaxHeight;
+    const lv_coord_t cover_size = compact ? 96 : 148;
+    const lv_coord_t cover_y = compact ? 54 : 96;
+    const lv_coord_t title_y = compact ? 160 : 272;
+    const lv_coord_t progress_y = compact ? 226 : 368;
+    const lv_coord_t controls_y = compact ? 270 : 432;
 
-        lv_obj_t *song = label(_page_content, "Music Test", &lv_font_montserrat_24, kText);
-        lv_obj_align(song, LV_ALIGN_LEFT_MID, 178, -32);
-        lv_obj_t *artist = label(_page_content, "Stellar Ocean", &lv_font_montserrat_16, kRed);
-        lv_obj_align(artist, LV_ALIGN_LEFT_MID, 178, 2);
-
-        lv_obj_t *controls = box(_page_content, 226, 50, kPanel, LV_OPA_COVER, 12);
-        lv_obj_align(controls, LV_ALIGN_LEFT_MID, 170, 52);
-        lv_obj_t *control_icons = label(controls, LV_SYMBOL_PREV "    " LV_SYMBOL_PLAY "    " LV_SYMBOL_NEXT,
-                                        &lv_font_montserrat_24, kText);
-        lv_obj_center(control_icons);
-        return;
-    }
-
-    lv_obj_t *cover = box(_page_content, 250, 250, kRed, LV_OPA_COVER, 28);
-    lv_obj_align(cover, LV_ALIGN_CENTER, 0, -92);
-    lv_obj_set_style_bg_grad_color(cover, kOrange, 0);
-    lv_obj_set_style_bg_grad_dir(cover, LV_GRAD_DIR_VER, 0);
-    lv_obj_set_style_shadow_width(cover, 36, 0);
-    lv_obj_set_style_shadow_color(cover, LV_COLOR_MAKE(0x7f, 0x1d, 0x1d), 0);
-
-    lv_obj_t *music = label(cover, LV_SYMBOL_AUDIO, &lv_font_montserrat_48, LV_COLOR_MAKE(0xff, 0xdf, 0xdf));
+    _music_cover = box(_page_content, cover_size, cover_size, kPurple, LV_OPA_COVER, compact ? 18 : 22);
+    lv_obj_align(_music_cover, LV_ALIGN_TOP_MID, 0, cover_y);
+    lv_obj_set_style_bg_grad_color(_music_cover, kCyan, 0);
+    lv_obj_set_style_bg_grad_dir(_music_cover, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_shadow_width(_music_cover, compact ? 14 : 22, 0);
+    lv_obj_set_style_shadow_color(_music_cover, LV_COLOR_MAKE(0x03, 0x10, 0x18), 0);
+    lv_obj_set_style_shadow_opa(_music_cover, LV_OPA_50, 0);
+    lv_obj_t *music = label(_music_cover, LV_SYMBOL_AUDIO, compact ? &lv_font_montserrat_34 : &lv_font_montserrat_48,
+                            LV_COLOR_MAKE(0xd8, 0xe5, 0xff));
     lv_obj_center(music);
 
-    lv_obj_t *song = label(_page_content, "Stellar Ocean", &lv_font_montserrat_28, kText);
-    lv_obj_align(song, LV_ALIGN_CENTER, 0, 76);
-    lv_obj_t *artist = label(_page_content, "Smart Glasses Demo Playlist", &lv_font_montserrat_16, kRed);
-    lv_obj_align(artist, LV_ALIGN_CENTER, 0, 116);
+    _music_title = label(_page_content, "", compact ? &lv_font_montserrat_24 : &lv_font_montserrat_28, kText);
+    lv_obj_set_width(_music_title, _view_width - 120);
+    lv_label_set_long_mode(_music_title, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(_music_title, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(_music_title, LV_ALIGN_TOP_MID, 0, title_y);
 
-    lv_obj_t *prev = label(_page_content, LV_SYMBOL_PREV, &lv_font_montserrat_34, kTextDim);
-    lv_obj_align(prev, LV_ALIGN_CENTER, -92, 190);
-    lv_obj_t *play_btn = box(_page_content, 76, 76, kText, LV_OPA_COVER, LV_RADIUS_CIRCLE);
-    lv_obj_align(play_btn, LV_ALIGN_CENTER, 0, 190);
-    lv_obj_t *play = label(play_btn, LV_SYMBOL_PLAY, &lv_font_montserrat_34, kBlack);
-    lv_obj_center(play);
-    lv_obj_t *next = label(_page_content, LV_SYMBOL_NEXT, &lv_font_montserrat_34, kTextDim);
-    lv_obj_align(next, LV_ALIGN_CENTER, 92, 190);
+    _music_artist = label(_page_content, "", compact ? &lv_font_montserrat_14 : &lv_font_montserrat_16, kTextDim);
+    lv_obj_set_width(_music_artist, _view_width - 120);
+    lv_label_set_long_mode(_music_artist, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(_music_artist, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(_music_artist, LV_ALIGN_TOP_MID, 0, title_y + (compact ? 30 : 38));
+
+    const lv_coord_t progress_width = compact ? 230 : 256;
+    lv_obj_t *progress_track = box(_page_content, progress_width, 5, LV_COLOR_MAKE(0x2c, 0x2c, 0x2f), LV_OPA_COVER, 3);
+    lv_obj_align(progress_track, LV_ALIGN_TOP_MID, 0, progress_y);
+    _music_progress_fill = box(progress_track, 1, 5, kText, LV_OPA_COVER, 3);
+    lv_obj_align(_music_progress_fill, LV_ALIGN_LEFT_MID, 0, 0);
+
+    _music_elapsed_label = label(_page_content, "", &lv_font_montserrat_12, kTextDim);
+    lv_obj_set_width(_music_elapsed_label, 40);
+    lv_obj_set_style_text_align(_music_elapsed_label, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_align_to(_music_elapsed_label, progress_track, LV_ALIGN_OUT_LEFT_MID, -22, 0);
+    _music_duration_label = label(_page_content, "", &lv_font_montserrat_12, kTextDim);
+    lv_obj_set_width(_music_duration_label, 40);
+    lv_obj_align_to(_music_duration_label, progress_track, LV_ALIGN_OUT_RIGHT_MID, 22, 0);
+
+    const lv_coord_t side_offset = compact ? 74 : 88;
+    const lv_coord_t side_size = compact ? 44 : 54;
+    const lv_coord_t play_size = compact ? 58 : 66;
+    lv_obj_t *prev_btn = box(_page_content, side_size, side_size, kBlack, LV_OPA_TRANSP, LV_RADIUS_CIRCLE);
+    lv_obj_align(prev_btn, LV_ALIGN_TOP_MID, -side_offset, controls_y);
+    lv_obj_add_flag(prev_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_user_data(prev_btn, reinterpret_cast<void *>(static_cast<uintptr_t>(0)));
+    lv_obj_add_event_cb(prev_btn, onMusicControlClicked, LV_EVENT_CLICKED, this);
+    lv_obj_t *prev = label(prev_btn, LV_SYMBOL_PREV, compact ? &lv_font_montserrat_24 : &lv_font_montserrat_28,
+                           kTextDim);
+    lv_obj_center(prev);
+    lv_obj_clear_flag(prev, LV_OBJ_FLAG_CLICKABLE);
+
+    lv_obj_t *play_btn = box(_page_content, play_size, play_size, kText, LV_OPA_COVER, LV_RADIUS_CIRCLE);
+    lv_obj_align(play_btn, LV_ALIGN_TOP_MID, 0, controls_y - ((play_size - side_size) / 2));
+    lv_obj_add_flag(play_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_user_data(play_btn, reinterpret_cast<void *>(static_cast<uintptr_t>(1)));
+    lv_obj_add_event_cb(play_btn, onMusicControlClicked, LV_EVENT_CLICKED, this);
+    _music_play_icon = label(play_btn, LV_SYMBOL_PAUSE, compact ? &lv_font_montserrat_28 : &lv_font_montserrat_34,
+                             kBlack);
+    lv_obj_center(_music_play_icon);
+    lv_obj_clear_flag(_music_play_icon, LV_OBJ_FLAG_CLICKABLE);
+
+    lv_obj_t *next_btn = box(_page_content, side_size, side_size, kBlack, LV_OPA_TRANSP, LV_RADIUS_CIRCLE);
+    lv_obj_align(next_btn, LV_ALIGN_TOP_MID, side_offset, controls_y);
+    lv_obj_add_flag(next_btn, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_user_data(next_btn, reinterpret_cast<void *>(static_cast<uintptr_t>(2)));
+    lv_obj_add_event_cb(next_btn, onMusicControlClicked, LV_EVENT_CLICKED, this);
+    lv_obj_t *next = label(next_btn, LV_SYMBOL_NEXT, compact ? &lv_font_montserrat_24 : &lv_font_montserrat_28,
+                           kTextDim);
+    lv_obj_center(next);
+    lv_obj_clear_flag(next, LV_OBJ_FLAG_CLICKABLE);
+
+    lv_obj_t *hint = cjk_label(_page_content, "‹ 按 ← → 键切歌，Enter 键播放/暂停 ›", kTextFaint);
+    lv_obj_set_width(hint, _view_width - 80);
+    lv_label_set_long_mode(hint, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, compact ? -14 : -30);
+
+    updateMusicPage();
+    if(_music_timer) {
+        lv_timer_resume(_music_timer);
+    }
+}
+
+void LensReactUI::updateMusicPage(void)
+{
+    if(_music_title == nullptr || _music_artist == nullptr || _music_elapsed_label == nullptr ||
+       _music_duration_label == nullptr || _music_progress_fill == nullptr || _music_play_icon == nullptr) {
+        return;
+    }
+    const MusicTrack &track = kMusicTracks[_music_track_index % kMusicTrackCount];
+    if(_music_elapsed_seconds > track.duration_seconds) {
+        _music_elapsed_seconds = track.duration_seconds;
+    }
+
+    lv_label_set_text(_music_title, track.title);
+    lv_label_set_text(_music_artist, track.artist);
+    if(_music_cover) {
+        lv_obj_set_style_bg_color(_music_cover, track.cover_start, 0);
+        lv_obj_set_style_bg_grad_color(_music_cover, track.cover_end, 0);
+    }
+    lv_label_set_text(_music_play_icon, _music_playing ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+
+    char elapsed[8];
+    char duration[8];
+    format_time(elapsed, sizeof(elapsed), _music_elapsed_seconds);
+    format_time(duration, sizeof(duration), track.duration_seconds);
+    lv_label_set_text(_music_elapsed_label, elapsed);
+    lv_label_set_text(_music_duration_label, duration);
+
+    lv_obj_t *progress_track = lv_obj_get_parent(_music_progress_fill);
+    const lv_coord_t track_width = progress_track ? lv_obj_get_width(progress_track) : 0;
+    const lv_coord_t fill_width = track.duration_seconds == 0 ?
+                                      1 :
+                                      LV_MAX((lv_coord_t)1,
+                                             (lv_coord_t)((track_width * _music_elapsed_seconds) /
+                                                          track.duration_seconds));
+    lv_obj_set_width(_music_progress_fill, fill_width);
+    lv_obj_align(_music_progress_fill, LV_ALIGN_LEFT_MID, 0, 0);
+}
+
+void LensReactUI::toggleMusicPlayback(void)
+{
+    _music_playing = !_music_playing;
+    updateMusicPage();
+}
+
+void LensReactUI::changeMusicTrack(int8_t delta)
+{
+    const int next = (static_cast<int>(_music_track_index) + static_cast<int>(delta) + kMusicTrackCount) %
+                     kMusicTrackCount;
+    _music_track_index = static_cast<uint8_t>(next);
+    _music_elapsed_seconds = _music_track_index == 0 ? 72 : 0;
+    _music_playing = true;
+    updateMusicPage();
 }
 
 void LensReactUI::createPrompterPage(void)
@@ -1345,74 +1643,154 @@ void LensReactUI::createPrompterPage(void)
 
 void LensReactUI::createTranslatePage(void)
 {
-    if(_view_height <= kCompactViewMaxHeight) {
-        const lv_coord_t panel_width = _view_width - 48;
-        lv_obj_t *top = box(_page_content, panel_width, 82, kBlack, LV_OPA_COVER, 8);
-        lv_obj_align(top, LV_ALIGN_TOP_MID, 0, kCompactContentTop);
-        lv_obj_set_style_border_width(top, 1, 0);
-        lv_obj_set_style_border_color(top, kPanel, 0);
-        lv_obj_t *src = label(top, "\"Is it eye tracking or touch?\"", &lv_font_montserrat_16, kTextDim);
-        lv_obj_center(src);
+    _translate_stack = lv_obj_create(_page_content);
+    set_plain(_translate_stack);
+    lv_obj_set_size(_translate_stack, _view_width, _view_height - 38);
+    lv_obj_align(_translate_stack, LV_ALIGN_TOP_MID, 0, 38);
+    lv_obj_set_style_bg_opa(_translate_stack, LV_OPA_TRANSP, 0);
 
-        lv_obj_t *bottom = box(_page_content, panel_width, 96, LV_COLOR_MAKE(0x09, 0x09, 0x0b), LV_OPA_COVER, 8);
-        lv_obj_align(bottom, LV_ALIGN_BOTTOM_MID, 0, -24);
-        lv_obj_set_style_border_width(bottom, 1, 0);
-        lv_obj_set_style_border_color(bottom, kCyan, 0);
-        lv_obj_t *out = label(bottom, "Translate Test: English output", &lv_font_montserrat_16, kCyan);
-        lv_obj_center(out);
+    lv_obj_t *empty_pill = box(_page_content, 270, 42, LV_COLOR_MAKE(0x08, 0x30, 0x38), LV_OPA_40, 21);
+    lv_obj_align(empty_pill, LV_ALIGN_CENTER, 0, 18);
+    lv_obj_set_style_border_width(empty_pill, 1, 0);
+    lv_obj_set_style_border_color(empty_pill, kCyan, 0);
+    lv_obj_set_style_border_opa(empty_pill, LV_OPA_30, 0);
+    lv_obj_t *empty_icon = label(empty_pill, LV_SYMBOL_GPS, &lv_font_montserrat_14, kCyan);
+    lv_obj_align(empty_icon, LV_ALIGN_LEFT_MID, 18, 0);
+    _translate_empty = label(empty_pill, "按 1、2、3 键模拟语音输入", &smartglass_font_14_cjk, kCyan);
+    lv_obj_align(_translate_empty, LV_ALIGN_LEFT_MID, 42, 0);
 
-        _mic_ring = box(_page_content, 42, 42, kCyan, LV_OPA_20, LV_RADIUS_CIRCLE);
-        lv_obj_align(_mic_ring, LV_ALIGN_CENTER, 0, 1);
-        lv_obj_set_style_border_width(_mic_ring, 1, 0);
-        lv_obj_set_style_border_color(_mic_ring, kCyan, 0);
-        lv_obj_t *mic = label(_mic_ring, LV_SYMBOL_AUDIO, &lv_font_montserrat_16, kCyan);
-        lv_obj_center(mic);
-        if(_mic_timer) {
-            lv_timer_resume(_mic_timer);
+    if(_translate_timer) {
+        lv_timer_resume(_translate_timer);
+    }
+}
+
+void LensReactUI::clearTranslateItems(void)
+{
+    for(auto &item : _translate_items) {
+        if(item.obj) {
+            lv_obj_del(item.obj);
         }
+        item = {};
+    }
+}
+
+void LensReactUI::triggerTranslation(uint8_t type)
+{
+    struct Sample {
+        const char *zh;
+        const char *en;
+    };
+    const Sample samples[] = {
+        {"请问去最近的地铁站怎么走？", "Excuse me, how do I get to the nearest subway station?"},
+        {"这附近有推荐的咖啡店吗？", "Are there any recommended coffee shops nearby?"},
+        {"麻烦帮我结账，可以用信用卡吗？", "Check, please. Can I pay by credit card?"},
+    };
+    if(type < 3) {
+        addTranslateItem(samples[type].zh, samples[type].en);
+    }
+}
+
+void LensReactUI::addTranslateItem(const char *zh, const char *en)
+{
+    if(_translate_stack == nullptr) {
         return;
     }
+    if(_translate_items[kMaxTranslateItems - 1].obj) {
+        lv_obj_t *oldest = _translate_items[kMaxTranslateItems - 1].obj;
+        lv_anim_del(oldest, nullptr);
+        lv_obj_add_flag(oldest, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_del_async(oldest);
+    }
+    if(_translate_items[0].obj) {
+        resetNotificationTimeline(_translate_items[0].timeline);
+    }
+    for(int8_t i = kMaxTranslateItems - 1; i > 0; --i) {
+        _translate_items[i] = _translate_items[i - 1];
+    }
+    _translate_items[0] = {};
 
-    lv_obj_t *top = box(_page_content, _width, _height / 2, kBlack, LV_OPA_COVER, 0);
-    lv_obj_align(top, LV_ALIGN_TOP_MID, 0, 0);
-    lv_obj_set_style_border_side(top, LV_BORDER_SIDE_BOTTOM, 0);
-    lv_obj_set_style_border_width(top, 1, 0);
-    lv_obj_set_style_border_color(top, kPanel, 0);
+    lv_obj_t *item = box(_translate_stack, 520, 188, LV_COLOR_MAKE(0x10, 0x13, 0x17), LV_OPA_80, 20);
+    lv_obj_set_style_border_width(item, 1, 0);
+    lv_obj_set_style_border_color(item, kCyan, 0);
+    lv_obj_set_style_border_opa(item, LV_OPA_30, 0);
+    lv_obj_set_style_shadow_width(item, 24, 0);
+    lv_obj_set_style_shadow_color(item, kBlack, 0);
+    lv_obj_set_style_shadow_opa(item, LV_OPA_50, 0);
 
-    lv_obj_t *tag_en = box(top, 86, 28, kPanel, LV_OPA_COVER, 14);
-    lv_obj_align(tag_en, LV_ALIGN_TOP_RIGHT, -40, 76);
-    lv_obj_t *en = label(tag_en, "English", &lv_font_montserrat_14, kTextFaint);
-    lv_obj_center(en);
+    lv_obj_t *source_icon = label(item, LV_SYMBOL_AUDIO, &lv_font_montserrat_12, kTextDim);
+    lv_obj_set_pos(source_icon, 20, 14);
+    lv_obj_t *source_tag = label(item, "原文（中文）", &smartglass_font_12_cjk, kTextDim);
+    lv_obj_set_pos(source_tag, 40, 14);
+    lv_obj_t *source_text = label(item, zh, &smartglass_font_20_cjk, kText);
+    lv_obj_set_pos(source_text, 20, 43);
 
-    lv_obj_t *en_text = label(top, "\"Wow, this smart glass interface looks amazing. Is it controlled by eye tracking or touch?\"",
-                              &lv_font_montserrat_24, kTextDim);
-    lv_obj_set_width(en_text, _width - 130);
-    lv_label_set_long_mode(en_text, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_align(en_text, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_center(en_text);
+    lv_obj_t *divider = box(item, 480, 1, kWhite, LV_OPA_20, 0);
+    lv_obj_set_pos(divider, 20, 86);
 
-    lv_obj_t *bottom = box(_page_content, _width, _height / 2, LV_COLOR_MAKE(0x09, 0x09, 0x0b), LV_OPA_COVER, 0);
-    lv_obj_align(bottom, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_t *tag_cn = box(bottom, 104, 30, LV_COLOR_MAKE(0x08, 0x30, 0x38), LV_OPA_70, 15);
-    lv_obj_align(tag_cn, LV_ALIGN_TOP_LEFT, 40, 28);
-    lv_obj_t *cn = label(tag_cn, "Output  " LV_SYMBOL_AUDIO, &lv_font_montserrat_14, kCyan);
-    lv_obj_center(cn);
+    lv_obj_t *output_tag = label(item, LV_SYMBOL_OK "  English Translation", &lv_font_montserrat_12, kCyan);
+    lv_obj_set_pos(output_tag, 20, 103);
+    lv_obj_t *output_text = label(item, en, &lv_font_montserrat_16, LV_COLOR_MAKE(0xec, 0xfe, 0xff));
+    lv_obj_set_width(output_text, 480);
+    lv_label_set_long_mode(output_text, LV_LABEL_LONG_WRAP);
+    lv_obj_set_pos(output_text, 20, 132);
 
-    lv_obj_t *cn_text = label(bottom, "\"This interface looks great. Is it controlled by eye tracking or touch?\"",
-                              &lv_font_montserrat_28, kCyan);
-    lv_obj_set_width(cn_text, _width - 120);
-    lv_label_set_long_mode(cn_text, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_align(cn_text, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_center(cn_text);
+    _translate_items[0].obj = item;
+    resetNotificationTimeline(_translate_items[0].timeline);
+    updateTranslateItemLayout();
+    lv_obj_set_style_opa(item, LV_OPA_TRANSP, 0);
+    lv_anim_t fade;
+    lv_anim_init(&fade);
+    lv_anim_set_var(&fade, item);
+    lv_anim_set_values(&fade, LV_OPA_TRANSP, LV_OPA_COVER);
+    lv_anim_set_time(&fade, 220);
+    lv_anim_set_exec_cb(&fade, onAnimOpa);
+    lv_anim_start(&fade);
+}
 
-    _mic_ring = box(bottom, 78, 78, kCyan, LV_OPA_20, LV_RADIUS_CIRCLE);
-    lv_obj_align(_mic_ring, LV_ALIGN_BOTTOM_MID, 0, -70);
-    lv_obj_set_style_border_width(_mic_ring, 1, 0);
-    lv_obj_set_style_border_color(_mic_ring, kCyan, 0);
-    lv_obj_t *mic = label(_mic_ring, LV_SYMBOL_AUDIO, &lv_font_montserrat_28, kCyan);
-    lv_obj_center(mic);
-    if(_mic_timer) {
-        lv_timer_resume(_mic_timer);
+void LensReactUI::removeTranslateItem(uint8_t index)
+{
+    if(index >= kMaxTranslateItems || _translate_items[index].obj == nullptr) {
+        return;
+    }
+    lv_obj_t *expired = _translate_items[index].obj;
+    lv_anim_del(expired, nullptr);
+    lv_obj_add_flag(expired, LV_OBJ_FLAG_HIDDEN);
+    for(uint8_t i = index; i + 1 < kMaxTranslateItems; ++i) {
+        _translate_items[i] = _translate_items[i + 1];
+    }
+    _translate_items[kMaxTranslateItems - 1] = {};
+    updateTranslateItemLayout();
+    lv_obj_del_async(expired);
+}
+
+void LensReactUI::updateTranslateItemLayout(void)
+{
+    constexpr lv_coord_t positions[] = {144, -56, -244};
+    bool has_items = false;
+    for(uint8_t i = 0; i < kMaxTranslateItems; ++i) {
+        lv_obj_t *item = _translate_items[i].obj;
+        if(item == nullptr) {
+            continue;
+        }
+        has_items = true;
+        lv_obj_set_x(item, (_view_width - 520) / 2);
+        lv_anim_t move;
+        lv_anim_init(&move);
+        lv_anim_set_var(&move, item);
+        lv_anim_set_values(&move, lv_obj_get_y(item), positions[i]);
+        lv_anim_set_time(&move, 220);
+        lv_anim_set_path_cb(&move, lv_anim_path_ease_out);
+        lv_anim_set_exec_cb(&move, onAnimY);
+        lv_anim_start(&move);
+        lv_obj_set_style_opa(item, i == 0 ? LV_OPA_COVER : (i == 1 ? LV_OPA_50 : LV_OPA_20), 0);
+    }
+    if(_translate_empty) {
+        lv_obj_t *pill = lv_obj_get_parent(_translate_empty);
+        if(has_items) {
+            lv_obj_add_flag(pill, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_clear_flag(pill, LV_OBJ_FLAG_HIDDEN);
+        }
     }
 }
 
@@ -1448,7 +1826,7 @@ void LensReactUI::createSettingsPage(void)
     const Setting settings[] = {
         {"显示亮度", "自动 72%", kYellow},
         {"交互方式", "触控 + 键盘 + 全局 AI", kBlue},
-        {"中文字体", "SimSun CJK 已启用", kGreen},
+        {"中文字体", "CJK 字体已启用", kGreen},
         {"移植状态", "保留 UTF-8 文案", kCyan},
     };
 
@@ -1491,7 +1869,7 @@ void LensReactUI::createAssistantPage(void)
     lv_label_set_long_mode(prompt, LV_LABEL_LONG_WRAP);
     lv_obj_align(prompt, LV_ALIGN_TOP_LEFT, 18, compact ? 54 : 62);
 
-    lv_obj_t *answer = cjk_label(card, "示例回复：已准备好，我会在任何页面响应你的呼出。", kTextDim);
+    lv_obj_t *answer = cjk_label(card, "示例回复：已准备好，我会在任何页面响应你的唤醒。", kTextDim);
     lv_obj_set_width(answer, card_width - 36);
     lv_label_set_long_mode(answer, LV_LABEL_LONG_WRAP);
     lv_obj_align(answer, LV_ALIGN_BOTTOM_LEFT, 18, -18);
@@ -1499,32 +1877,77 @@ void LensReactUI::createAssistantPage(void)
 
 void LensReactUI::showAssistantOverlay(void)
 {
-    if(_root == nullptr) {
+    if(_viewport == nullptr) {
         return;
     }
     hideAssistantOverlay();
 
-    _assistant_overlay = box(_root, _view_width, _view_height, kBlack, LV_OPA_70, 0);
+    _assistant_overlay = box(_viewport, _view_width, _view_height, kBlack, LV_OPA_90, 0);
     lv_obj_center(_assistant_overlay);
-    lv_obj_add_flag(_assistant_overlay, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(_assistant_overlay, onOverlayDismissed, LV_EVENT_CLICKED, this);
+    lv_obj_clear_flag(_assistant_overlay, LV_OBJ_FLAG_CLICKABLE);
+    if(_status_bar) {
+        lv_obj_set_style_text_color(_clock_label, kWhite, 0);
+        lv_obj_set_style_text_color(_battery_label, kWhite, 0);
+        lv_obj_set_style_bg_color(_battery_fill, kWhite, 0);
+        const uint32_t child_count = lv_obj_get_child_cnt(_status_bar);
+        for(uint32_t i = 0; i < child_count; ++i) {
+            lv_obj_t *child = lv_obj_get_child(_status_bar, i);
+            if(child == _assistant_button) {
+                continue;
+            }
+            lv_obj_set_style_border_color(child, kWhite, 0);
+            if(lv_obj_get_width(child) <= 4 && lv_obj_get_height(child) <= 10) {
+                lv_obj_set_style_bg_color(child, kWhite, 0);
+            }
+        }
+    }
 
-    const bool compact = _view_height <= kCompactViewMaxHeight;
-    lv_obj_t *panel = box(_assistant_overlay, LV_MIN((lv_coord_t)520, (lv_coord_t)(_view_width - 48)),
-                          LV_MIN((lv_coord_t)170, (lv_coord_t)(_view_height - 64)),
-                          LV_COLOR_MAKE(0x10, 0x0f, 0x18), LV_OPA_COVER, 18);
-    lv_obj_align(panel, LV_ALIGN_CENTER, 0, compact ? 10 : 0);
-    lv_obj_set_style_border_width(panel, 1, 0);
-    lv_obj_set_style_border_color(panel, kPurple, 0);
+    _assistant_panel = box(_assistant_overlay, _view_width - 64, 230,
+                           LV_COLOR_MAKE(0x18, 0x18, 0x1b), LV_OPA_COVER, 24);
+    lv_obj_align(_assistant_panel, LV_ALIGN_BOTTOM_MID, 0, -24);
+    lv_obj_set_style_bg_grad_color(_assistant_panel, LV_COLOR_MAKE(0x13, 0x19, 0x22), 0);
+    lv_obj_set_style_bg_grad_dir(_assistant_panel, LV_GRAD_DIR_HOR, 0);
+    lv_obj_set_style_border_width(_assistant_panel, 1, 0);
+    lv_obj_set_style_border_color(_assistant_panel, kWhite, 0);
+    lv_obj_set_style_border_opa(_assistant_panel, LV_OPA_20, 0);
+    lv_obj_set_style_shadow_width(_assistant_panel, 20, 0);
+    lv_obj_set_style_shadow_color(_assistant_panel, kBlack, 0);
+    lv_obj_set_style_shadow_opa(_assistant_panel, LV_OPA_50, 0);
 
-    lv_obj_t *title = cjk_label(panel, "小智正在聆听", kPurple);
-    lv_obj_align(title, LV_ALIGN_TOP_LEFT, 20, compact ? 16 : 18);
-    lv_obj_t *body = cjk_label(panel, "全局呼出成功。试试说：打开设置、开始翻译、记录会议重点。", kText);
-    lv_obj_set_width(body, lv_obj_get_width(panel) - 40);
-    lv_label_set_long_mode(body, LV_LABEL_LONG_WRAP);
-    lv_obj_align(body, LV_ALIGN_TOP_LEFT, 20, compact ? 48 : 54);
-    lv_obj_t *hint = cjk_label(panel, "点击任意位置关闭", kTextFaint);
-    lv_obj_align(hint, LV_ALIGN_BOTTOM_RIGHT, -18, -14);
+    lv_obj_t *bot_circle = box(_assistant_panel, 64, 64, LV_COLOR_MAKE(0x63, 0x5b, 0xf6), LV_OPA_COVER,
+                               LV_RADIUS_CIRCLE);
+    lv_obj_align(bot_circle, LV_ALIGN_TOP_MID, 0, 24);
+    lv_obj_set_style_bg_grad_color(bot_circle, LV_COLOR_MAKE(0xa8, 0x55, 0xf7), 0);
+    lv_obj_set_style_bg_grad_dir(bot_circle, LV_GRAD_DIR_HOR, 0);
+    lv_obj_set_style_shadow_width(bot_circle, 26, 0);
+    lv_obj_set_style_shadow_color(bot_circle, kPurple, 0);
+    lv_obj_set_style_shadow_opa(bot_circle, LV_OPA_50, 0);
+    lv_obj_t *bot = lv_img_create(bot_circle);
+    lv_img_set_src(bot, &assistant_bot_icon);
+    lv_obj_center(bot);
+
+    lv_obj_t *title = label(_assistant_panel, "我是小智", &smartglass_font_20_cjk, kText);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 102);
+
+    lv_obj_t *body = label(_assistant_panel, "正在聆听：帮我导航到最近的咖啡店", &smartglass_font_14_cjk,
+                           kTextDim);
+    lv_obj_align(body, LV_ALIGN_TOP_MID, 0, 136);
+
+    constexpr lv_coord_t wave_heights[5] = {10, 18, 24, 18, 12};
+    for(uint8_t i = 0; i < 5; ++i) {
+        _assistant_wave_bars[i] = box(_assistant_panel, 4, wave_heights[i], kWhite, LV_OPA_80, 2);
+        lv_obj_align(_assistant_wave_bars[i], LV_ALIGN_BOTTOM_MID, (static_cast<int>(i) - 2) * 8, -24);
+    }
+    _assistant_wave_step = 0;
+    if(_mic_timer) {
+        lv_timer_set_period(_mic_timer, 120);
+        lv_timer_resume(_mic_timer);
+    }
+
+    lv_obj_align(_assistant_panel, LV_ALIGN_BOTTOM_MID, 0, -24);
+    if(_status_bar) {
+        lv_obj_move_foreground(_status_bar);
+    }
 }
 
 void LensReactUI::hideAssistantOverlay(void)
@@ -1532,6 +1955,32 @@ void LensReactUI::hideAssistantOverlay(void)
     if(_assistant_overlay) {
         lv_obj_del(_assistant_overlay);
         _assistant_overlay = nullptr;
+    }
+    _assistant_panel = nullptr;
+    for(auto &bar : _assistant_wave_bars) {
+        bar = nullptr;
+    }
+    if(_mic_timer) {
+        lv_timer_set_period(_mic_timer, 650);
+        if(_mic_ring == nullptr) {
+            lv_timer_pause(_mic_timer);
+        }
+    }
+    if(_status_bar && _current_app < 0) {
+        lv_obj_set_style_text_color(_clock_label, kBlack, 0);
+        lv_obj_set_style_text_color(_battery_label, kBlack, 0);
+        lv_obj_set_style_bg_color(_battery_fill, kBlack, 0);
+        const uint32_t child_count = lv_obj_get_child_cnt(_status_bar);
+        for(uint32_t i = 0; i < child_count; ++i) {
+            lv_obj_t *child = lv_obj_get_child(_status_bar, i);
+            if(child == _assistant_button) {
+                continue;
+            }
+            lv_obj_set_style_border_color(child, kBlack, 0);
+            if(lv_obj_get_width(child) <= 4 && lv_obj_get_height(child) <= 10) {
+                lv_obj_set_style_bg_color(child, kBlack, 0);
+            }
+        }
     }
 }
 
@@ -1584,7 +2033,30 @@ void LensReactUI::onPromptTimer(lv_timer_t *timer)
 void LensReactUI::onMicTimer(lv_timer_t *timer)
 {
     auto *app = static_cast<LensReactUI *>(timer ? LENS_TIMER_USER_DATA(timer) : nullptr);
-    if(app == nullptr || app->_mic_ring == nullptr) {
+    if(app == nullptr) {
+        return;
+    }
+    if(app->_assistant_overlay) {
+        constexpr lv_coord_t patterns[6][5] = {
+            {8, 16, 24, 16, 10},
+            {14, 24, 12, 20, 8},
+            {20, 10, 18, 26, 14},
+            {10, 20, 28, 14, 22},
+            {18, 26, 14, 22, 10},
+            {12, 18, 22, 10, 18},
+        };
+        app->_assistant_wave_step = (app->_assistant_wave_step + 1) % 6;
+        for(uint8_t i = 0; i < 5; ++i) {
+            lv_obj_t *bar = app->_assistant_wave_bars[i];
+            if(bar == nullptr) {
+                continue;
+            }
+            lv_obj_set_height(bar, patterns[app->_assistant_wave_step][i]);
+            lv_obj_align(bar, LV_ALIGN_BOTTOM_MID, (static_cast<int>(i) - 2) * 8, -24);
+        }
+        return;
+    }
+    if(app->_mic_ring == nullptr) {
         return;
     }
     app->_mic_expand = !app->_mic_expand;
@@ -1634,6 +2106,74 @@ void LensReactUI::onNotificationTimer(lv_timer_t *timer)
     }
 }
 
+void LensReactUI::onTranslateTimer(lv_timer_t *timer)
+{
+    auto *app = static_cast<LensReactUI *>(timer ? LENS_TIMER_USER_DATA(timer) : nullptr);
+    if(app == nullptr || app->_current_app != kTranslateAppIndex) {
+        return;
+    }
+    for(uint8_t i = 1; i < kMaxTranslateItems;) {
+        auto &item = app->_translate_items[i];
+        if(item.obj == nullptr) {
+            ++i;
+            continue;
+        }
+        stepNotificationTimeline(item.timeline, 100);
+        if(item.timeline.phase == NotificationPhase::Fading) {
+            lv_obj_set_style_opa(item.obj, LV_OPA_30, 0);
+        }
+        if(item.timeline.removable) {
+            app->removeTranslateItem(i);
+            continue;
+        }
+        ++i;
+    }
+}
+
+void LensReactUI::onMusicTimer(lv_timer_t *timer)
+{
+    auto *app = static_cast<LensReactUI *>(timer ? LENS_TIMER_USER_DATA(timer) : nullptr);
+    if(app == nullptr || app->_current_app != kMusicAppIndex || !app->_music_playing) {
+        return;
+    }
+    const MusicTrack &track = kMusicTracks[app->_music_track_index % kMusicTrackCount];
+    if(app->_music_elapsed_seconds + 1 >= track.duration_seconds) {
+        app->changeMusicTrack(1);
+        return;
+    }
+    app->_music_elapsed_seconds++;
+    app->updateMusicPage();
+}
+
+void LensReactUI::onCameraTimer(lv_timer_t *timer)
+{
+    auto *app = static_cast<LensReactUI *>(timer ? LENS_TIMER_USER_DATA(timer) : nullptr);
+    if(app == nullptr || app->_current_app != kCameraAppIndex) {
+        return;
+    }
+    if(app->_camera_recording) {
+        app->_camera_record_seconds++;
+        app->updateCameraPage();
+    }
+    if(app->_camera_toast_remaining_ms > 0) {
+        app->_camera_toast_remaining_ms =
+            app->_camera_toast_remaining_ms > 1000 ? app->_camera_toast_remaining_ms - 1000 : 0;
+        if(app->_camera_toast_remaining_ms == 0 && app->_camera_toast &&
+           !lv_obj_has_flag(app->_camera_toast, LV_OBJ_FLAG_HIDDEN)) {
+            lv_anim_del(app->_camera_toast, onAnimOpa);
+            lv_anim_t fade;
+            lv_anim_init(&fade);
+            lv_anim_set_var(&fade, app->_camera_toast);
+            lv_anim_set_values(&fade, lv_obj_get_style_opa(app->_camera_toast, 0), LV_OPA_TRANSP);
+            lv_anim_set_time(&fade, 220);
+            lv_anim_set_path_cb(&fade, lv_anim_path_ease_in);
+            lv_anim_set_exec_cb(&fade, onAnimOpa);
+            lv_anim_set_ready_cb(&fade, onAnimHideReady);
+            lv_anim_start(&fade);
+        }
+    }
+}
+
 void LensReactUI::onRootPressed(lv_event_t *event)
 {
     auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
@@ -1680,7 +2220,7 @@ void LensReactUI::onRootKey(lv_event_t *event)
         return;
     }
     const uint32_t key = lv_event_get_key(event);
-    if(key == 'a' || key == 'A') {
+    if(key == kAssistantWakeKey || key == 'a' || key == 'A') {
         app->showAssistantOverlay();
         return;
     }
@@ -1704,6 +2244,40 @@ void LensReactUI::onRootKey(lv_event_t *event)
             return;
         }
     }
+    if(app->_current_app == kTranslateAppIndex) {
+        if(key >= '1' && key <= '3') {
+            app->triggerTranslation(static_cast<uint8_t>(key - '1'));
+            return;
+        }
+    }
+    if(app->_current_app == kMusicAppIndex) {
+        if(key == LV_KEY_LEFT) {
+            app->changeMusicTrack(-1);
+            return;
+        }
+        if(key == LV_KEY_RIGHT) {
+            app->changeMusicTrack(1);
+            return;
+        }
+        if(key == LV_KEY_ENTER || key == ' ') {
+            app->toggleMusicPlayback();
+            return;
+        }
+    }
+    if(app->_current_app == kCameraAppIndex) {
+        if(key == LV_KEY_ENTER) {
+            app->captureCameraPhoto();
+            return;
+        }
+        if(key == ' ') {
+            if(app->_camera_recording) {
+                app->finishCameraRecording();
+            } else {
+                app->startCameraRecording();
+            }
+            return;
+        }
+    }
     if(app->_current_app < 0) {
         if((key == LV_KEY_RIGHT) && (app->_selected_index + 1 < kAppCount)) {
             app->selectIndex(app->_selected_index + 1, true);
@@ -1714,6 +2288,51 @@ void LensReactUI::onRootKey(lv_event_t *event)
         }
     } else if(key == LV_KEY_ESC || key == LV_KEY_BACKSPACE) {
         app->showHome();
+    }
+}
+
+void LensReactUI::onCameraGesture(lv_event_t *event)
+{
+    auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
+    if(app == nullptr || app->_current_app != kCameraAppIndex) {
+        return;
+    }
+    const lv_event_code_t code = lv_event_get_code(event);
+    if(code == LV_EVENT_LONG_PRESSED) {
+        app->startCameraRecording();
+        return;
+    }
+    if(code == LV_EVENT_RELEASED) {
+        if(app->_camera_recording) {
+            app->finishCameraRecording();
+        }
+        return;
+    }
+    if(code == LV_EVENT_SHORT_CLICKED) {
+        const uint32_t now = lv_tick_get();
+        if(app->_camera_last_click_ms != 0 && now - app->_camera_last_click_ms <= 450) {
+            app->_camera_last_click_ms = 0;
+            app->captureCameraPhoto();
+        } else {
+            app->_camera_last_click_ms = now;
+        }
+    }
+}
+
+void LensReactUI::onMusicControlClicked(lv_event_t *event)
+{
+    auto *app = static_cast<LensReactUI *>(lv_event_get_user_data(event));
+    if(app == nullptr) {
+        return;
+    }
+    lv_obj_t *target = lv_event_get_target(event);
+    const uintptr_t action = reinterpret_cast<uintptr_t>(lv_obj_get_user_data(target));
+    if(action == 0) {
+        app->changeMusicTrack(-1);
+    } else if(action == 1) {
+        app->toggleMusicPlayback();
+    } else if(action == 2) {
+        app->changeMusicTrack(1);
     }
 }
 

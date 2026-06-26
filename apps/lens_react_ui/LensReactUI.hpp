@@ -18,19 +18,28 @@ public:
 
 private:
     static constexpr uint8_t kAppCount = 9;
+    static constexpr uint8_t kCameraAppIndex = 1;
     static constexpr uint8_t kNotificationAppIndex = 3;
+    static constexpr uint8_t kMusicAppIndex = 4;
     static constexpr uint8_t kMaxNotificationBubbles = 4;
+    static constexpr uint8_t kTranslateAppIndex = 6;
+    static constexpr uint8_t kMaxTranslateItems = 3;
 
     static void onClockTimer(lv_timer_t *timer);
     static void onPromptTimer(lv_timer_t *timer);
     static void onMicTimer(lv_timer_t *timer);
     static void onNavigationTimer(lv_timer_t *timer);
     static void onNotificationTimer(lv_timer_t *timer);
+    static void onTranslateTimer(lv_timer_t *timer);
+    static void onMusicTimer(lv_timer_t *timer);
+    static void onCameraTimer(lv_timer_t *timer);
     static void onRootPressed(lv_event_t *event);
     static void onRootReleased(lv_event_t *event);
     static void onRootKey(lv_event_t *event);
     static void onTileClicked(lv_event_t *event);
     static void onAssistantClicked(lv_event_t *event);
+    static void onMusicControlClicked(lv_event_t *event);
+    static void onCameraGesture(lv_event_t *event);
     static void onOverlayDismissed(lv_event_t *event);
     static void onAnimX(void *obj, int32_t value);
     static void onAnimY(void *obj, int32_t value);
@@ -42,6 +51,11 @@ private:
         NotificationTimeline timeline = {};
         bool fade_started = false;
         bool exit_started = false;
+    };
+
+    struct TranslateItem {
+        lv_obj_t *obj = nullptr;
+        NotificationTimeline timeline = {};
     };
 
     void createHome(lv_coord_t width, lv_coord_t height);
@@ -66,6 +80,19 @@ private:
     void startNotificationBubbleExit(uint8_t index);
     void removeNotificationBubble(uint8_t index);
     void updateNotificationBubbleLayout(void);
+    void clearTranslateItems(void);
+    void triggerTranslation(uint8_t type);
+    void addTranslateItem(const char *zh, const char *en);
+    void removeTranslateItem(uint8_t index);
+    void updateTranslateItemLayout(void);
+    void updateMusicPage(void);
+    void toggleMusicPlayback(void);
+    void changeMusicTrack(int8_t delta);
+    void updateCameraPage(void);
+    void captureCameraPhoto(void);
+    void startCameraRecording(void);
+    void finishCameraRecording(void);
+    void showCameraToast(const char *text);
 
     void createCameraPage(void);
     void createNotesPage(void);
@@ -94,6 +121,8 @@ private:
     lv_obj_t *_battery_label = nullptr;
     lv_obj_t *_battery_fill = nullptr;
     lv_obj_t *_assistant_overlay = nullptr;
+    lv_obj_t *_assistant_panel = nullptr;
+    lv_obj_t *_assistant_wave_bars[5] = {};
     lv_obj_t *_nav_direction_img = nullptr;
     lv_obj_t *_nav_distance_label = nullptr;
     lv_obj_t *_nav_speed_label = nullptr;
@@ -109,12 +138,29 @@ private:
     lv_obj_t *_prompt_lines[4] = {};
     lv_obj_t *_mic_ring = nullptr;
     NotificationBubble _notification_bubbles[kMaxNotificationBubbles] = {};
+    TranslateItem _translate_items[kMaxTranslateItems] = {};
+    lv_obj_t *_translate_stack = nullptr;
+    lv_obj_t *_translate_empty = nullptr;
+    lv_obj_t *_music_cover = nullptr;
+    lv_obj_t *_music_title = nullptr;
+    lv_obj_t *_music_artist = nullptr;
+    lv_obj_t *_music_elapsed_label = nullptr;
+    lv_obj_t *_music_duration_label = nullptr;
+    lv_obj_t *_music_progress_fill = nullptr;
+    lv_obj_t *_music_play_icon = nullptr;
+    lv_obj_t *_camera_recording_pill = nullptr;
+    lv_obj_t *_camera_recording_label = nullptr;
+    lv_obj_t *_camera_toast = nullptr;
+    lv_obj_t *_camera_toast_label = nullptr;
 
     lv_timer_t *_clock_timer = nullptr;
     lv_timer_t *_prompt_timer = nullptr;
     lv_timer_t *_mic_timer = nullptr;
     lv_timer_t *_navigation_timer = nullptr;
     lv_timer_t *_notification_timer = nullptr;
+    lv_timer_t *_translate_timer = nullptr;
+    lv_timer_t *_music_timer = nullptr;
+    lv_timer_t *_camera_timer = nullptr;
 
     lv_coord_t _width = 0;
     lv_coord_t _height = 0;
@@ -128,6 +174,14 @@ private:
     bool _dragging = false;
     bool _suppress_click = false;
     bool _mic_expand = false;
+    uint8_t _assistant_wave_step = 0;
+    uint8_t _music_track_index = 0;
+    uint16_t _music_elapsed_seconds = 72;
+    bool _music_playing = true;
+    uint32_t _camera_last_click_ms = 0;
+    uint16_t _camera_record_seconds = 0;
+    uint16_t _camera_toast_remaining_ms = 0;
+    bool _camera_recording = false;
     NavigationState _navigation_state = {};
     NavigationLightState _nav_rendered_light_state = NavigationLightState::None;
 };

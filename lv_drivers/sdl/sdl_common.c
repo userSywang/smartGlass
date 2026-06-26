@@ -265,6 +265,10 @@ uint32_t keycode_to_ctrl_key(SDL_Keycode sdl_key)
         case SDLK_PAGEUP:
             return LV_KEY_PREV;
 
+        case SDLK_LCTRL:
+        case SDLK_RCTRL:
+            return 'a';
+
         default:
             return '\0';
     }
