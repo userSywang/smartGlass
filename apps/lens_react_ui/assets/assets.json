@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "generated_c_directory": "../",
+  "embedded_ui_assets": [
+    {
+      "source": "ui/home/*.png",
+      "output": "home_icons_asset.c",
+      "usage": "home module icons"
+    },
+    {
+      "source": "ui/camera/camera_shutter.png",
+      "output": "camera_shutter_asset.c",
+      "usage": "camera shutter button"
+    },
+    {
+      "source": "ui/meeting/microphone.svg",
+      "output": "meeting_microphone_asset.c",
+      "usage": "meeting transcript microphone"
+    },
+    {
+      "source": "ui/shared/session_clock.svg",
+      "output": "session_clock_asset.c",
+      "usage": "module elapsed time pill"
+    },
+    {
+      "source": "ui/navigation/png/*.png",
+      "output": "nav_assets.c",
+      "usage": "navigation hud symbols"
+    },
+    {
+      "source": "ui/assistant/assistant_bot.png",
+      "output": "assistant_bot_asset.c",
+      "usage": "assistant panel icon"
+    }
+  ],
+  "simulation_background_assets": [
+    {
+      "source": "simulation/backgrounds/camera_lifestyle_background.png",
+      "output": "camera_lifestyle_background_asset.c",
+      "usage": "camera simulation background"
+    },
+    {
+      "source": "simulation/backgrounds/meeting_background.png",
+      "output": "meeting_background_asset.c",
+      "usage": "meeting record simulation background"
+    },
+    {
+      "source": "simulation/backgrounds/navigation_background.png",
+      "output": "navigation_background_asset.c",
+      "usage": "navigation simulation background"
+    },
+    {
+      "source": "simulation/backgrounds/realtime_translate_background.png",
+      "output": "realtime_translate_background_asset.c",
+      "usage": "real-time translate simulation background"
+    }
+  ]
+}

@@ -10,6 +10,10 @@
 #define LENS_TIMER_USER_DATA(t) ((t)->user_data)
 #endif
 
+#ifndef SMARTGLASS_ENABLE_SIMULATION_BACKGROUNDS
+#define SMARTGLASS_ENABLE_SIMULATION_BACKGROUNDS 1
+#endif
+
 LV_FONT_DECLARE(smartglass_font_16_cjk);
 LV_FONT_DECLARE(smartglass_font_14_cjk);
 LV_FONT_DECLARE(smartglass_font_12_cjk);
@@ -30,10 +34,12 @@ LV_IMG_DECLARE(nav_flag);
 LV_IMG_DECLARE(nav_traffic_red);
 LV_IMG_DECLARE(nav_traffic_green);
 LV_IMG_DECLARE(meeting_microphone_icon);
+#if SMARTGLASS_ENABLE_SIMULATION_BACKGROUNDS
 LV_IMG_DECLARE(meeting_background);
 LV_IMG_DECLARE(camera_lifestyle_background);
 LV_IMG_DECLARE(realtime_translate_background);
 LV_IMG_DECLARE(navigation_background);
+#endif
 LV_IMG_DECLARE(session_clock_icon);
 LV_IMG_DECLARE(home_notes_icon);
 LV_IMG_DECLARE(home_camera_icon);
@@ -1082,10 +1088,14 @@ void LensReactUI::createCameraPage(void)
     lv_obj_add_event_cb(frame, onCameraGesture, LV_EVENT_LONG_PRESSED, this);
     lv_obj_add_event_cb(frame, onCameraGesture, LV_EVENT_RELEASED, this);
 
+#if SMARTGLASS_ENABLE_SIMULATION_BACKGROUNDS
     cover_image(frame, &camera_lifestyle_background, frame_width, frame_height);
     lv_obj_t *camera_shade = box(frame, frame_width, frame_height, kBlack, LV_OPA_20, compact ? 20 : 26);
     lv_obj_center(camera_shade);
     lv_obj_clear_flag(camera_shade, LV_OBJ_FLAG_CLICKABLE);
+#else
+    lv_obj_set_style_bg_color(frame, LV_COLOR_MAKE(0x11, 0x12, 0x12), 0);
+#endif
 
     lv_obj_t *focus = box(frame, compact ? 58 : 72, compact ? 58 : 72, kBlack, LV_OPA_TRANSP, 0);
     lv_obj_align(focus, LV_ALIGN_CENTER, 0, compact ? 2 : 4);
@@ -1292,10 +1302,16 @@ void LensReactUI::createNavigationPage(void)
         lv_obj_set_pos(obj, x, hud_bottom_y - lv_obj_get_height(obj));
     };
 
+#if SMARTGLASS_ENABLE_SIMULATION_BACKGROUNDS
     cover_image(_page_content, &navigation_background, _view_width, content_height);
     lv_obj_t *navigation_shade = box(_page_content, _view_width, content_height, kBlack, LV_OPA_30, 0);
     lv_obj_center(navigation_shade);
     lv_obj_clear_flag(navigation_shade, LV_OBJ_FLAG_CLICKABLE);
+#else
+    lv_obj_t *navigation_backdrop = box(_page_content, _view_width, content_height, kBlack, LV_OPA_COVER, 0);
+    lv_obj_center(navigation_backdrop);
+    lv_obj_clear_flag(navigation_backdrop, LV_OBJ_FLAG_CLICKABLE);
+#endif
 
     _nav_baseline = box(_page_content, _view_width - 112, 3, kHudGreen, LV_OPA_80, 2);
     lv_obj_set_pos(_nav_baseline, 56, baseline_y);
@@ -1964,10 +1980,16 @@ void LensReactUI::createRealtimeTranslatePage(void)
 {
     const bool compact = _view_height <= kCompactViewMaxHeight || _view_width <= 700;
 
+#if SMARTGLASS_ENABLE_SIMULATION_BACKGROUNDS
     cover_image(_page_content, &realtime_translate_background, _view_width, _view_height);
     lv_obj_t *shade = box(_page_content, _view_width, _view_height, kBlack, LV_OPA_50, 0);
     lv_obj_center(shade);
     lv_obj_clear_flag(shade, LV_OBJ_FLAG_CLICKABLE);
+#else
+    lv_obj_t *shade = box(_page_content, _view_width, _view_height, LV_COLOR_MAKE(0x05, 0x06, 0x07), LV_OPA_COVER, 0);
+    lv_obj_center(shade);
+    lv_obj_clear_flag(shade, LV_OBJ_FLAG_CLICKABLE);
+#endif
 
     _realtime_source_label = label(_page_content, "", &lv_font_montserrat_14, kTextDim);
     lv_obj_set_width(_realtime_source_label, _view_width - (compact ? 48 : 96));
@@ -2517,10 +2539,17 @@ void LensReactUI::createMeetingPage(void)
 {
     const bool compact = _view_height <= kCompactViewMaxHeight || _view_width <= 700;
 
+#if SMARTGLASS_ENABLE_SIMULATION_BACKGROUNDS
     cover_image(_page_content, &meeting_background, _view_width, _view_height);
     lv_obj_t *meeting_shade = box(_page_content, _view_width, _view_height, kBlack, LV_OPA_30, 0);
     lv_obj_center(meeting_shade);
     lv_obj_clear_flag(meeting_shade, LV_OBJ_FLAG_CLICKABLE);
+#else
+    lv_obj_t *meeting_shade = box(_page_content, _view_width, _view_height, LV_COLOR_MAKE(0x04, 0x05, 0x06),
+                                  LV_OPA_COVER, 0);
+    lv_obj_center(meeting_shade);
+    lv_obj_clear_flag(meeting_shade, LV_OBJ_FLAG_CLICKABLE);
+#endif
 
     createSessionTimerPill(LV_ALIGN_TOP_LEFT, compact ? 14 : 24, compact ? 42 : 52);
 
