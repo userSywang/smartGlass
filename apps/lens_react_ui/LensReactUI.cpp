@@ -466,35 +466,9 @@ bool LensReactUI::run(void)
     _meeting_timer = lv_timer_create(onMeetingTimer, 90, this);
     _music_timer = lv_timer_create(onMusicTimer, 1000, this);
     _camera_timer = lv_timer_create(onCameraTimer, 1000, this);
-    if(_prompt_timer) {
-        lv_timer_pause(_prompt_timer);
-    }
+    pausePageTimers();
     if(_mic_timer) {
         lv_timer_pause(_mic_timer);
-    }
-    if(_navigation_timer) {
-        lv_timer_pause(_navigation_timer);
-    }
-    if(_notification_timer) {
-        lv_timer_pause(_notification_timer);
-    }
-    if(_translate_timer) {
-        lv_timer_pause(_translate_timer);
-    }
-    if(_realtime_translate_timer) {
-        lv_timer_pause(_realtime_translate_timer);
-    }
-    if(_bilingual_timer) {
-        lv_timer_pause(_bilingual_timer);
-    }
-    if(_meeting_timer) {
-        lv_timer_pause(_meeting_timer);
-    }
-    if(_music_timer) {
-        lv_timer_pause(_music_timer);
-    }
-    if(_camera_timer) {
-        lv_timer_pause(_camera_timer);
     }
 
     return true;
@@ -830,30 +804,13 @@ void LensReactUI::updateDots(void)
 void LensReactUI::showHome(void)
 {
     hideAssistantOverlay();
+    pausePageTimers();
     _current_app = -1;
     if(_home) {
         lv_obj_clear_flag(_home, LV_OBJ_FLAG_HIDDEN);
     }
     if(_page) {
         lv_obj_add_flag(_page, LV_OBJ_FLAG_HIDDEN);
-    }
-    if(_prompt_timer) {
-        lv_timer_pause(_prompt_timer);
-    }
-    if(_mic_timer) {
-        lv_timer_pause(_mic_timer);
-    }
-    if(_navigation_timer) {
-        lv_timer_pause(_navigation_timer);
-    }
-    if(_bilingual_timer) {
-        lv_timer_pause(_bilingual_timer);
-    }
-    if(_realtime_translate_timer) {
-        lv_timer_pause(_realtime_translate_timer);
-    }
-    if(_meeting_timer) {
-        lv_timer_pause(_meeting_timer);
     }
     if(_battery_label) {
         lv_obj_clear_flag(_battery_label, LV_OBJ_FLAG_HIDDEN);
@@ -933,6 +890,7 @@ void LensReactUI::showApp(uint8_t index)
         }
     }
     rebuildPage();
+    resumePageTimer(_current_app);
     if(_status_bar) {
         lv_obj_move_foreground(_status_bar);
     }
@@ -989,6 +947,7 @@ void LensReactUI::rebuildPage(void)
 
 void LensReactUI::clearPageContent(void)
 {
+    pausePageTimers();
     clearNotificationBubbles();
     clearTranslateItems();
     clearBilingualChatItems();
@@ -1001,36 +960,6 @@ void LensReactUI::clearPageContent(void)
     _session_elapsed_label = nullptr;
     _session_start_tick = 0;
     _mic_ring = nullptr;
-    if(_prompt_timer) {
-        lv_timer_pause(_prompt_timer);
-    }
-    if(_mic_timer) {
-        lv_timer_pause(_mic_timer);
-    }
-    if(_navigation_timer) {
-        lv_timer_pause(_navigation_timer);
-    }
-    if(_notification_timer) {
-        lv_timer_pause(_notification_timer);
-    }
-    if(_translate_timer) {
-        lv_timer_pause(_translate_timer);
-    }
-    if(_realtime_translate_timer) {
-        lv_timer_pause(_realtime_translate_timer);
-    }
-    if(_bilingual_timer) {
-        lv_timer_pause(_bilingual_timer);
-    }
-    if(_meeting_timer) {
-        lv_timer_pause(_meeting_timer);
-    }
-    if(_music_timer) {
-        lv_timer_pause(_music_timer);
-    }
-    if(_camera_timer) {
-        lv_timer_pause(_camera_timer);
-    }
     _notification_stack = nullptr;
     _notification_empty_label = nullptr;
     _translate_stack = nullptr;
@@ -1152,9 +1081,6 @@ void LensReactUI::createCameraPage(void)
     lv_obj_add_flag(_camera_toast, LV_OBJ_FLAG_HIDDEN);
 
     updateCameraPage();
-    if(_camera_timer) {
-        lv_timer_resume(_camera_timer);
-    }
 }
 
 void LensReactUI::updateCameraPage(void)
@@ -1380,9 +1306,6 @@ void LensReactUI::createNavigationPage(void)
     resetNavigationState(_navigation_state);
     _nav_rendered_light_state = NavigationLightState::None;
     updateNavigationPage();
-    if(_navigation_timer) {
-        lv_timer_resume(_navigation_timer);
-    }
 }
 
 void LensReactUI::updateNavigationPage(void)
@@ -1491,10 +1414,6 @@ void LensReactUI::createNotificationPage(void)
     _notification_empty_label = cjk_label(empty_pill, "按 1、2、3 键模拟新通知", kTextFaint);
     lv_obj_center(_notification_empty_label);
     updateNotificationBubbleLayout();
-    if(_notification_timer) {
-        lv_timer_set_period(_notification_timer, 100);
-        lv_timer_resume(_notification_timer);
-    }
 }
 
 void LensReactUI::clearNotificationBubbles(void)
@@ -1793,9 +1712,6 @@ void LensReactUI::createMusicPage(void)
     lv_obj_align(hint, LV_ALIGN_BOTTOM_MID, 0, compact ? -14 : -30);
 
     updateMusicPage();
-    if(_music_timer) {
-        lv_timer_resume(_music_timer);
-    }
 }
 
 void LensReactUI::updateMusicPage(void)
@@ -1872,9 +1788,6 @@ void LensReactUI::createPrompterPage(void)
 
     _prompt_focus = 0;
     updatePrompterPage();
-    if(_prompt_timer) {
-        lv_timer_resume(_prompt_timer);
-    }
 }
 
 void LensReactUI::updatePrompterPage(void)
@@ -1971,9 +1884,6 @@ void LensReactUI::createTranslatePage(void)
     _translate_empty = label(empty_pill, "按 1、2、3 键模拟语音输入", &smartglass_font_14_cjk, kCyan);
     lv_obj_align(_translate_empty, LV_ALIGN_LEFT_MID, 42, 0);
 
-    if(_translate_timer) {
-        lv_timer_resume(_translate_timer);
-    }
 }
 
 void LensReactUI::createRealtimeTranslatePage(void)
@@ -2008,9 +1918,6 @@ void LensReactUI::createRealtimeTranslatePage(void)
     _realtime_delay = 24;
     _realtime_progress = 0;
     updateRealtimeTranslatePage();
-    if(_realtime_translate_timer) {
-        lv_timer_resume(_realtime_translate_timer);
-    }
 }
 
 void LensReactUI::updateRealtimeTranslatePage(void)
@@ -2252,9 +2159,6 @@ void LensReactUI::createBilingualChatPage(void)
                                 &smartglass_font_12_cjk, kTextDim);
     lv_obj_center(hint_text);
 
-    if(_bilingual_timer) {
-        lv_timer_resume(_bilingual_timer);
-    }
 }
 
 void LensReactUI::clearBilingualChatItems(void)
@@ -2656,9 +2560,6 @@ void LensReactUI::createMeetingPage(void)
     _meeting_mic_opacity_step = 0;
     _meeting_transcript_target_width = transcript_min_width;
     updateMeetingPage();
-    if(_meeting_timer) {
-        lv_timer_resume(_meeting_timer);
-    }
 }
 
 void LensReactUI::updateMeetingPage(void)
@@ -2865,6 +2766,7 @@ void LensReactUI::showAssistantOverlay(void)
         return;
     }
     hideAssistantOverlay();
+    pausePageTimers();
 
     _assistant_overlay = box(_viewport, _view_width, _view_height, kBlack, LV_OPA_90, 0);
     lv_obj_center(_assistant_overlay);
@@ -2936,6 +2838,7 @@ void LensReactUI::showAssistantOverlay(void)
 
 void LensReactUI::hideAssistantOverlay(void)
 {
+    const bool was_visible = _assistant_overlay != nullptr;
     if(_assistant_overlay) {
         lv_obj_del(_assistant_overlay);
         _assistant_overlay = nullptr;
@@ -2946,9 +2849,10 @@ void LensReactUI::hideAssistantOverlay(void)
     }
     if(_mic_timer) {
         lv_timer_set_period(_mic_timer, 650);
-        if(_mic_ring == nullptr) {
-            lv_timer_pause(_mic_timer);
-        }
+        lv_timer_pause(_mic_timer);
+    }
+    if(was_visible) {
+        resumePageTimer(_current_app);
     }
     if(_status_bar && _current_app < 0) {
         lv_obj_set_style_text_color(_clock_label, kBlack, 0);

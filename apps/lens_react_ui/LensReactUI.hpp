@@ -5,6 +5,7 @@
 #include "lvgl.h"
 #include "NavigationSimulation.hpp"
 #include "NotificationTimeline.hpp"
+#include "PageRuntime.hpp"
 
 class LensReactUI {
 public:
@@ -101,6 +102,8 @@ private:
     void resetSessionTimer(void);
     void updateSessionTimer(void);
     void clearPageContent(void);
+    void pausePageTimers(void);
+    void resumePageTimer(int8_t app_index);
     void clearNotificationBubbles(void);
     void triggerNotification(uint8_t type);
     void addNotificationBubble(const char *source, const char *sender, const char *message, const char *icon,
