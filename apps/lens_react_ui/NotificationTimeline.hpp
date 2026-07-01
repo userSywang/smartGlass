@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+constexpr uint16_t kNotificationTimelineTickMs = 100;
+
 enum class NotificationPhase : uint8_t {
     Entering,
     Visible,

@@ -28,5 +28,16 @@ int main()
     stepNotificationTimeline(timeline, 240);
     assert(timeline.removable);
 
+    resetNotificationTimeline(timeline);
+    for(uint16_t elapsed = 0; elapsed < 10000; elapsed += kNotificationTimelineTickMs) {
+        stepNotificationTimeline(timeline, kNotificationTimelineTickMs);
+    }
+    assert(timeline.phase == NotificationPhase::Exiting);
+    assert(!timeline.removable);
+    for(uint16_t elapsed = 0; elapsed < 300; elapsed += kNotificationTimelineTickMs) {
+        stepNotificationTimeline(timeline, kNotificationTimelineTickMs);
+    }
+    assert(timeline.removable);
+
     return 0;
 }

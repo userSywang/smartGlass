@@ -459,7 +459,7 @@ bool LensReactUI::run(void)
     _prompt_timer = lv_timer_create(onPromptTimer, 1200, this);
     _mic_timer = lv_timer_create(onMicTimer, 650, this);
     _navigation_timer = lv_timer_create(onNavigationTimer, 1000, this);
-    _notification_timer = lv_timer_create(onNotificationTimer, 1000, this);
+    _notification_timer = lv_timer_create(onNotificationTimer, kNotificationTimelineTickMs, this);
     _translate_timer = lv_timer_create(onTranslateTimer, 100, this);
     _realtime_translate_timer = lv_timer_create(onRealtimeTranslateTimer, 80, this);
     _bilingual_timer = lv_timer_create(onBilingualChatTimer, 70, this);
@@ -3059,7 +3059,7 @@ void LensReactUI::onNotificationTimer(lv_timer_t *timer)
             continue;
         }
         const NotificationPhase previous_phase = item.timeline.phase;
-        stepNotificationTimeline(item.timeline, 100);
+        stepNotificationTimeline(item.timeline, kNotificationTimelineTickMs);
         if(previous_phase != item.timeline.phase) {
             if(item.timeline.phase == NotificationPhase::Fading) {
                 app->startNotificationBubbleFade(i);
@@ -3087,7 +3087,7 @@ void LensReactUI::onTranslateTimer(lv_timer_t *timer)
             ++i;
             continue;
         }
-        stepNotificationTimeline(item.timeline, 100);
+        stepNotificationTimeline(item.timeline, kNotificationTimelineTickMs);
         if(item.timeline.phase == NotificationPhase::Fading) {
             lv_obj_set_style_opa(item.obj, LV_OPA_30, 0);
         }
