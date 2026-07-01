@@ -96,7 +96,11 @@ void LensReactUI::updateMusicPage(void)
        _music_duration_label == nullptr || _music_progress_fill == nullptr || _music_play_icon == nullptr) {
         return;
     }
-    const MusicTrack &track = kMusicTracks[_music_track_index % kMusicTrackCount];
+    const LensDataView<MusicTrackSample> tracks = _data_provider.musicTracks();
+    if(tracks.size == 0) {
+        return;
+    }
+    const MusicTrackSample &track = tracks[_music_track_index % tracks.size];
     if(_music_elapsed_seconds > track.duration_seconds) {
         _music_elapsed_seconds = track.duration_seconds;
     }
@@ -104,8 +108,8 @@ void LensReactUI::updateMusicPage(void)
     lv_label_set_text(_music_title, track.title);
     lv_label_set_text(_music_artist, track.artist);
     if(_music_cover) {
-        lv_obj_set_style_bg_color(_music_cover, track.cover_start, 0);
-        lv_obj_set_style_bg_grad_color(_music_cover, track.cover_end, 0);
+        lv_obj_set_style_bg_color(_music_cover, color_from_rgb(track.cover_start_rgb), 0);
+        lv_obj_set_style_bg_grad_color(_music_cover, color_from_rgb(track.cover_end_rgb), 0);
     }
     lv_label_set_text(_music_play_icon, _music_playing ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
 
@@ -135,8 +139,12 @@ void LensReactUI::toggleMusicPlayback(void)
 
 void LensReactUI::changeMusicTrack(int8_t delta)
 {
-    const int next = (static_cast<int>(_music_track_index) + static_cast<int>(delta) + kMusicTrackCount) %
-                     kMusicTrackCount;
+    const LensDataView<MusicTrackSample> tracks = _data_provider.musicTracks();
+    if(tracks.size == 0) {
+        return;
+    }
+    const int track_count = static_cast<int>(tracks.size);
+    const int next = (static_cast<int>(_music_track_index) + static_cast<int>(delta) + track_count) % track_count;
     _music_track_index = static_cast<uint8_t>(next);
     _music_elapsed_seconds = _music_track_index == 0 ? 72 : 0;
     _music_playing = true;

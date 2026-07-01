@@ -37,24 +37,22 @@ void LensReactUI::clearNotificationBubbles(void)
 
 void LensReactUI::triggerNotification(uint8_t type)
 {
-    struct NotificationSample {
-        const char *source;
-        const char *sender;
-        const char *message;
-        const char *icon;
-        lv_color_t accent;
-    };
-    const NotificationSample samples[] = {
-        {"微信", "张三", "晚饭定在科技园那家日料店了。", LV_SYMBOL_BELL, kGreen},
-        {"短信", "中国移动", "验证码 482916，5 分钟内有效。", LV_SYMBOL_CALL, kBlue},
-        {"钉钉", "项目会议", "15:30 产品评审会即将开始。", LV_SYMBOL_LIST, kOrange},
-    };
-
-    if(type >= (sizeof(samples) / sizeof(samples[0]))) {
+    const LensDataView<NotificationSample> samples = _data_provider.notifications();
+    if(type >= samples.size) {
         return;
     }
-    addNotificationBubble(samples[type].source, samples[type].sender, samples[type].message, samples[type].icon,
-                          samples[type].accent);
+
+    const NotificationSample &sample = samples[type];
+    const char *icon = LV_SYMBOL_BELL;
+    lv_color_t accent = kGreen;
+    if(sample.channel == NotificationChannel::Sms) {
+        icon = LV_SYMBOL_CALL;
+        accent = kBlue;
+    } else if(sample.channel == NotificationChannel::DingTalk) {
+        icon = LV_SYMBOL_LIST;
+        accent = kOrange;
+    }
+    addNotificationBubble(sample.source, sample.sender, sample.message, icon, accent);
 }
 
 void LensReactUI::addNotificationBubble(const char *source, const char *sender, const char *message, const char *icon,

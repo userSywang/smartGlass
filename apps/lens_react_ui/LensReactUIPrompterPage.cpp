@@ -30,11 +30,17 @@ void LensReactUI::updatePrompterPage(void)
     if(_prompt_text_label == nullptr) {
         return;
     }
+    const LensDataView<const char *> segments = _data_provider.prompterSegments();
+    if(segments.size == 0) {
+        lv_label_set_text(_prompt_text_label, "");
+        return;
+    }
+    _prompt_focus = static_cast<uint8_t>(_prompt_focus % segments.size);
 
     char text[1536] = {};
     size_t used = 0;
-    for(uint8_t i = 0; i < kPrompterSegmentCount; ++i) {
-        const char *segment = kPrompterSegments[i];
+    for(std::size_t i = 0; i < segments.size; ++i) {
+        const char *segment = segments[i];
         const int written = i == _prompt_focus
                                 ? std::snprintf(text + used, sizeof(text) - used, "#34d399 %s#", segment)
                                 : std::snprintf(text + used, sizeof(text) - used, "%s", segment);
@@ -45,6 +51,6 @@ void LensReactUI::updatePrompterPage(void)
     }
     lv_label_set_text(_prompt_text_label, text);
     if(_prompt_timer) {
-        lv_timer_set_period(_prompt_timer, prompter_segment_duration(kPrompterSegments[_prompt_focus]));
+        lv_timer_set_period(_prompt_timer, prompter_segment_duration(segments[_prompt_focus]));
     }
 }

@@ -16,7 +16,11 @@ void LensReactUI::onPromptTimer(lv_timer_t *timer)
     if(app == nullptr || app->_current_app != 5) {
         return;
     }
-    app->_prompt_focus = (app->_prompt_focus + 1) % kPrompterSegmentCount;
+    const LensDataView<const char *> segments = app->_data_provider.prompterSegments();
+    if(segments.size == 0) {
+        return;
+    }
+    app->_prompt_focus = static_cast<uint8_t>((app->_prompt_focus + 1) % segments.size);
     app->updatePrompterPage();
 }
 
@@ -154,7 +158,11 @@ void LensReactUI::onMusicTimer(lv_timer_t *timer)
     if(app == nullptr || app->_current_app != kMusicAppIndex || !app->_music_playing) {
         return;
     }
-    const MusicTrack &track = kMusicTracks[app->_music_track_index % kMusicTrackCount];
+    const LensDataView<MusicTrackSample> tracks = app->_data_provider.musicTracks();
+    if(tracks.size == 0) {
+        return;
+    }
+    const MusicTrackSample &track = tracks[app->_music_track_index % tracks.size];
     if(app->_music_elapsed_seconds + 1 >= track.duration_seconds) {
         app->changeMusicTrack(1);
         return;

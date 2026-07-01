@@ -94,14 +94,6 @@ struct TileDef {
     const lv_img_dsc_t *icon;
 };
 
-struct MusicTrack {
-    const char *title;
-    const char *artist;
-    uint16_t duration_seconds;
-    lv_color_t cover_start;
-    lv_color_t cover_end;
-};
-
 inline const TileDef kApps[] = {
     {"notes", "备忘", &home_notes_icon},
     {"camera", "相机", &home_camera_icon},
@@ -117,26 +109,13 @@ inline const TileDef kApps[] = {
     {"assistant", "小智", &home_assistant_icon},
 };
 
-inline const MusicTrack kMusicTracks[] = {
-    {"Cyberpunk City", "Synthwave Maker", 222, LV_COLOR_MAKE(0xc0, 0x4b, 0xf5), LV_COLOR_MAKE(0x18, 0xb7, 0xd5)},
-    {"Night Drive", "Neon Pulse", 196, LV_COLOR_MAKE(0x36, 0x60, 0xf6), LV_COLOR_MAKE(0x34, 0xd3, 0x99)},
-    {"Glass Horizon", "Ambient Lab", 248, LV_COLOR_MAKE(0xf4, 0x73, 0xb9), LV_COLOR_MAKE(0xf5, 0x9e, 0x0b)},
-};
-
-inline const char *kPrompterSegments[] = {
-    "大家好，欢迎来到新品发布会。",
-    "我们的 AR 眼镜采用了全新的设计，",
-    " Our AR glasses feature a broader design，",
-    " 支持全球超过 100 种语言的实时翻译，",
-    " and support translation for over 100 languages. ",
-    "准确率高达 98%，",
-    "做到真正意义上的无障碍沟通。",
-    "感谢大家的关注与支持。",
-};
-
-constexpr uint8_t kPrompterSegmentCount = sizeof(kPrompterSegments) / sizeof(kPrompterSegments[0]);
-
-constexpr uint8_t kMusicTrackCount = sizeof(kMusicTracks) / sizeof(kMusicTracks[0]);
+inline lv_color_t color_from_rgb(uint32_t rgb)
+{
+    const auto red = static_cast<uint8_t>((rgb >> 16) & 0xff);
+    const auto green = static_cast<uint8_t>((rgb >> 8) & 0xff);
+    const auto blue = static_cast<uint8_t>(rgb & 0xff);
+    return LV_COLOR_MAKE(red, green, blue);
+}
 
 inline const lv_font_t *font_or_default(const lv_font_t *font)
 {

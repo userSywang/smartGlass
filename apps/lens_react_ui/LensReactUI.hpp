@@ -3,13 +3,14 @@
 #include <cstdint>
 
 #include "lvgl.h"
+#include "LensDataProvider.hpp"
 #include "NavigationSimulation.hpp"
 #include "NotificationTimeline.hpp"
 #include "PageRuntime.hpp"
 
 class LensReactUI {
 public:
-    LensReactUI();
+    explicit LensReactUI(const LensDataProvider &data_provider = simulationLensDataProvider());
     ~LensReactUI() = default;
 
     bool init(void);
@@ -256,6 +257,9 @@ private:
     uint16_t _camera_record_seconds = 0;
     uint16_t _camera_toast_remaining_ms = 0;
     bool _camera_recording = false;
+    const LensDataProvider &_data_provider;
+    uint8_t _bilingual_mine_sample_index = 0;
+    uint8_t _bilingual_other_sample_index = 0;
     NavigationState _navigation_state = {};
     NavigationLightState _nav_rendered_light_state = NavigationLightState::None;
 };

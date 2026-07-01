@@ -62,22 +62,11 @@ void LensReactUI::updateRealtimeTranslatePage(void)
         return;
     }
 
-    struct Sample {
-        const char *source;
-        const char *translation;
-    };
-    const Sample samples[] = {
-        {"We need to memorize these basic structures and their directing effects.",
-         "我们需要记住这些基本结构及其导向效应。"},
-        {"So that we can better predict and design organic reactions.",
-         "这样我们才能更好地预测和设计有机反应。"},
-        {"Are there any questions about this part of the lecture?",
-         "关于这部分讲座有什么问题吗？"},
-        {"The next example shows how the reaction changes under different conditions.",
-         "下一个例子展示了反应在不同条件下的变化。"},
-    };
-    constexpr uint8_t sample_count = sizeof(samples) / sizeof(samples[0]);
-    const Sample &sample = samples[_realtime_sentence_index % sample_count];
+    const LensDataView<TranslationSample> samples = _data_provider.realtimeTranslations();
+    if(samples.size == 0) {
+        return;
+    }
+    const TranslationSample &sample = samples[_realtime_sentence_index % samples.size];
 
     if(_realtime_stage == 0) {
         lv_label_set_text(_realtime_source_label, "Listening to the environment...");
@@ -120,7 +109,7 @@ void LensReactUI::updateRealtimeTranslatePage(void)
         _realtime_delay--;
         return;
     }
-    _realtime_sentence_index = (_realtime_sentence_index + 1) % sample_count;
+    _realtime_sentence_index = static_cast<uint8_t>((_realtime_sentence_index + 1) % samples.size);
     _realtime_stage = 1;
     _realtime_progress = 0;
 }
@@ -137,17 +126,9 @@ void LensReactUI::clearTranslateItems(void)
 
 void LensReactUI::triggerTranslation(uint8_t type)
 {
-    struct Sample {
-        const char *zh;
-        const char *en;
-    };
-    const Sample samples[] = {
-        {"请问去最近的地铁站怎么走？", "Excuse me, how do I get to the nearest subway station?"},
-        {"这附近有推荐的咖啡店吗？", "Are there any recommended coffee shops nearby?"},
-        {"麻烦帮我结账，可以用信用卡吗？", "Check, please. Can I pay by credit card?"},
-    };
-    if(type < 3) {
-        addTranslateItem(samples[type].zh, samples[type].en);
+    const LensDataView<TranslationSample> samples = _data_provider.translations();
+    if(type < samples.size) {
+        addTranslateItem(samples[type].source, samples[type].translation);
     }
 }
 
@@ -309,35 +290,23 @@ void LensReactUI::clearBilingualChatItems(void)
 
 void LensReactUI::triggerBilingualChat(uint8_t type)
 {
-    struct Sample {
-        const char *role;
-        const char *primary;
-        const char *secondary;
-        bool mine;
-    };
-    const Sample mine_samples[] = {
-        {"我说（中文）", "你好，很高兴认识你。", "Hello, nice to meet you.", true},
-        {"我说（中文）", "请问去最近的地铁站怎么走？",
-         "Excuse me, how do I get to the nearest subway station?", true},
-        {"我说（中文）", "我们可以在门口集合。", "We can meet at the entrance.", true},
-    };
-    const Sample other_samples[] = {
-        {"对方（English）", "Go straight and turn left at the corner.", "直走并在拐角处左转。", false},
-        {"对方（English）", "The meeting starts in ten minutes.", "会议将在十分钟后开始。", false},
-        {"对方（English）", "I can help you order coffee.", "我可以帮你点咖啡。", false},
-    };
-    static uint8_t mine_index = 0;
-    static uint8_t other_index = 0;
-
     if(type == 0) {
-        const Sample &sample = mine_samples[mine_index % (sizeof(mine_samples) / sizeof(mine_samples[0]))];
-        mine_index++;
+        const LensDataView<BilingualSample> samples = _data_provider.bilingualMineSamples();
+        if(samples.size == 0) {
+            return;
+        }
+        const BilingualSample &sample = samples[_bilingual_mine_sample_index % samples.size];
+        _bilingual_mine_sample_index++;
         addBilingualChatItem(sample.role, sample.primary, sample.secondary, sample.mine);
         return;
     }
     if(type == 1) {
-        const Sample &sample = other_samples[other_index % (sizeof(other_samples) / sizeof(other_samples[0]))];
-        other_index++;
+        const LensDataView<BilingualSample> samples = _data_provider.bilingualOtherSamples();
+        if(samples.size == 0) {
+            return;
+        }
+        const BilingualSample &sample = samples[_bilingual_other_sample_index % samples.size];
+        _bilingual_other_sample_index++;
         addBilingualChatItem(sample.role, sample.primary, sample.secondary, sample.mine);
     }
 }

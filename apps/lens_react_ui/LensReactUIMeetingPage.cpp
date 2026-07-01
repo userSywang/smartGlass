@@ -56,15 +56,19 @@ void LensReactUI::createMeetingPage(void)
     const lv_coord_t card_h = compact ? 54 : 64;
     const lv_coord_t card_x = _view_width - card_w - (compact ? 22 : 40);
     const lv_coord_t first_y = compact ? 142 : 206;
-    const char *card_titles[] = {"待办事项", "排期节点", "关键信息"};
-    const char *card_bodies[] = {
-        "前端参与后端联调登录页接口",
-        "周三前：登录页必须上线",
-        "周五下午：交付AR新版视觉初稿",
-    };
-    const lv_color_t card_colors[] = {kGreen, LV_COLOR_MAKE(0xfb, 0x71, 0x85), kYellow};
-    const char *card_icons[] = {LV_SYMBOL_OK, LV_SYMBOL_FILE, LV_SYMBOL_WARNING};
-    for(uint8_t i = 0; i < 3; ++i) {
+    const LensDataView<MeetingCardSample> cards = _data_provider.meetingCards();
+    const std::size_t card_count = LV_MIN(cards.size, static_cast<std::size_t>(3));
+    for(std::size_t i = 0; i < card_count; ++i) {
+        const MeetingCardSample &sample = cards[i];
+        lv_color_t card_color = kGreen;
+        const char *card_icon = LV_SYMBOL_OK;
+        if(sample.kind == MeetingCardKind::Schedule) {
+            card_color = LV_COLOR_MAKE(0xfb, 0x71, 0x85);
+            card_icon = LV_SYMBOL_FILE;
+        } else if(sample.kind == MeetingCardKind::KeyInfo) {
+            card_color = kYellow;
+            card_icon = LV_SYMBOL_WARNING;
+        }
         lv_obj_t *card = box(_page_content, card_w, card_h, LV_COLOR_MAKE(0x07, 0x07, 0x0a), LV_OPA_80, 10);
         _meeting_cards[i] = card;
         lv_obj_set_pos(card, card_x, first_y + i * (card_h + (compact ? 10 : 16)));
@@ -75,11 +79,11 @@ void LensReactUI::createMeetingPage(void)
         lv_obj_set_style_shadow_color(card, kBlack, 0);
         lv_obj_set_style_shadow_opa(card, LV_OPA_50, 0);
 
-        lv_obj_t *icon = label(card, card_icons[i], &lv_font_montserrat_12, card_colors[i]);
+        lv_obj_t *icon = label(card, card_icon, &lv_font_montserrat_12, card_color);
         lv_obj_set_pos(icon, 14, compact ? 9 : 10);
-        lv_obj_t *card_title = label(card, card_titles[i], &smartglass_font_12_cjk, card_colors[i]);
+        lv_obj_t *card_title = label(card, sample.title, &smartglass_font_12_cjk, card_color);
         lv_obj_set_pos(card_title, 32, compact ? 8 : 9);
-        lv_obj_t *body = label(card, card_bodies[i], &smartglass_font_14_cjk, kText);
+        lv_obj_t *body = label(card, sample.body, &smartglass_font_14_cjk, kText);
         lv_obj_set_width(body, card_w - 28);
         lv_label_set_long_mode(body, LV_LABEL_LONG_DOT);
         lv_obj_set_pos(body, 14, compact ? 29 : 34);
@@ -127,13 +131,11 @@ void LensReactUI::createMeetingPage(void)
 
 void LensReactUI::updateMeetingPage(void)
 {
-    const char *lines[] = {
-        "大家上午好，现在开始同步项目进度。",
-        "前端的登录页和侧边栏都完成了没有？",
-        "基本完成了，还需要和后端联调接口。",
-        "预计周五下午会初稿，重点优化了暗色模式的对比度。",
-    };
-    constexpr uint8_t line_count = sizeof(lines) / sizeof(lines[0]);
+    const LensDataView<const char *> lines = _data_provider.meetingTranscriptLines();
+    if(lines.size == 0) {
+        return;
+    }
+    const std::size_t line_count = lines.size;
     if(_meeting_line_index >= line_count) {
         _meeting_line_index = line_count - 1;
     }

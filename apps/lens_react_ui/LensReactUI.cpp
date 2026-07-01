@@ -2,7 +2,8 @@
 
 using namespace lens_ui;
 
-LensReactUI::LensReactUI()
+LensReactUI::LensReactUI(const LensDataProvider &data_provider)
+    : _data_provider(data_provider)
 {
 }
 
