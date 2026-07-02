@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.12.4)
 
 project(smartGlass)
 
+include(CTest)
+
 set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/out/smartGlass)
 set(LV_CONF_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lv_conf.h CACHE STRING "Path defined for lv_conf.h")
 
@@ -25,6 +27,10 @@ include_directories(${SDL2_INCLUDE_DIRS})
 add_subdirectory(lv_drivers EXCLUDE_FROM_ALL)
 add_subdirectory(lvgl EXCLUDE_FROM_ALL)
 add_subdirectory(apps/lens_react_ui)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
 
 add_executable(${PROJECT_NAME}
     main.cpp
