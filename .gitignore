@@ -1,6 +1,8 @@
 build/
 out/
 .font-cache/
+__pycache__/
+*.py[cod]
 
 # CMake generated files that may be created outside build/
 CMakeFiles/

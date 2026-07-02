@@ -23,8 +23,6 @@ LV_FONT_DECLARE(smartglass_font_20_cjk);
 LV_FONT_DECLARE(nav_font_72_digits);
 LV_IMG_DECLARE(assistant_bot_icon);
 LV_IMG_DECLARE(camera_shutter_button);
-LV_IMG_DECLARE(nav_bicycle_icon);
-LV_IMG_DECLARE(nav_flag_icon);
 LV_IMG_DECLARE(nav_bicycle);
 LV_IMG_DECLARE(nav_direction_straight);
 LV_IMG_DECLARE(nav_direction_left);

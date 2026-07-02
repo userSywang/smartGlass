@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.12.4)
 project(smartGlass)
 
 include(CTest)
+find_package(Python3 COMPONENTS Interpreter QUIET)
+
+option(SMARTGLASS_STRIP_RELEASE_BINARY "Strip symbols from GNU Release binaries" ON)
 
 set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/out/smartGlass)
 set(LV_CONF_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lv_conf.h CACHE STRING "Path defined for lv_conf.h")
@@ -32,30 +35,27 @@ if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
-add_executable(${PROJECT_NAME}
-    main.cpp
-    mouse_cursor_icon.c
-)
-
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_link_libraries(${PROJECT_NAME} PRIVATE
-        pthread
-        lens_react_ui
-        lv_drivers
-        -Wl,--whole-archive
-        lvgl
-        -Wl,--no-whole-archive
-        ${SDL2_STATIC_LIBRARIES}
-    )
-else()
-    target_link_libraries(${PROJECT_NAME} PRIVATE
-        pthread
-        lens_react_ui
-        lv_drivers
-        lvgl
-        ${SDL2_STATIC_LIBRARIES}
+if(Python3_Interpreter_FOUND)
+    add_custom_target(
+        check_lens_assets
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/generate_lens_assets.py --check
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Checking generated LVGL image assets"
     )
 endif()
+
+add_executable(${PROJECT_NAME}
+    main.cpp
+    apps/simulator/generated/mouse_cursor_icon.c
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    pthread
+    lens_react_ui
+    lv_drivers
+    lvgl
+    ${SDL2_STATIC_LIBRARIES}
+)
 
 target_compile_options(${PROJECT_NAME} PRIVATE
     -Wall
@@ -72,6 +72,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_options(${PROJECT_NAME} PRIVATE -static-libstdc++ -static-libgcc)
+    if(SMARTGLASS_STRIP_RELEASE_BINARY)
+        target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:-s>)
+    endif()
 endif()
 
 set_target_properties(

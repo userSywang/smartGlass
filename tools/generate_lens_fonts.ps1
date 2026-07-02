@@ -46,9 +46,14 @@ foreach ($code in ($chars | Sort-Object)) {
 }
 $symbols = $symbolsBuilder.ToString()
 
+$generatedFontDir = "apps/lens_react_ui/generated/fonts"
+if (-not (Test-Path $generatedFontDir)) {
+    New-Item -ItemType Directory -Path $generatedFontDir | Out-Null
+}
+
 $sizes = @(12, 14, 16, 20)
 foreach ($size in $sizes) {
-    $output = "apps/lens_react_ui/smartglass_font_${size}_cjk.c"
+    $output = "apps/lens_react_ui/generated/fonts/smartglass_font_${size}_cjk.c"
     Write-Host "Generating $output"
     & npx -y lv_font_conv `
         --font $FontPath `

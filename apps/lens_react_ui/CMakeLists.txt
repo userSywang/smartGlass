@@ -4,41 +4,47 @@ project(lens_react_ui)
 
 option(SMARTGLASS_ENABLE_SIMULATION_BACKGROUNDS "Compile simulation-only background image assets" ON)
 
-file(GLOB_RECURSE APPS_C_SRCS ./*.c)
-file(GLOB_RECURSE APPS_CPP_SRCS ./*.cpp)
+set(LENS_UI_CODE_SRCS
+    LensReactUI.cpp
+    LensReactUICameraPage.cpp
+    LensReactUIEvents.cpp
+    LensReactUILifecycle.cpp
+    LensReactUIMeetingPage.cpp
+    LensReactUIMiscPages.cpp
+    LensReactUIMusicPage.cpp
+    LensReactUINavigationPage.cpp
+    LensReactUINotificationPage.cpp
+    LensReactUIPrompterPage.cpp
+    LensReactUISession.cpp
+    LensReactUITranslationPages.cpp
+    NavigationSimulation.cpp
+    NotificationTimeline.cpp
+    SimulationLensDataProvider.cpp
+)
 
 set(LENS_UI_ASSET_SRCS
-    assistant_bot_asset.c
-    camera_shutter_asset.c
-    home_icons_asset.c
-    meeting_microphone_asset.c
-    nav_assets.c
-    nav_bicycle_icon.c
-    nav_flag_icon.c
-    session_clock_asset.c
+    generated/ui/assistant_bot_asset.c
+    generated/ui/camera_shutter_asset.c
+    generated/ui/home_icons_asset.c
+    generated/ui/meeting_microphone_asset.c
+    generated/ui/nav_assets.c
+    generated/ui/session_clock_asset.c
 )
 
 set(LENS_SIMULATION_BACKGROUND_ASSET_SRCS
-    camera_lifestyle_background_asset.c
-    meeting_background_asset.c
-    navigation_background_asset.c
-    realtime_translate_background_asset.c
+    generated/simulation/camera_lifestyle_background_asset.c
+    generated/simulation/meeting_background_asset.c
+    generated/simulation/navigation_background_asset.c
+    generated/simulation/realtime_translate_background_asset.c
 )
 
-set(LENS_MANAGED_GENERATED_SRCS
-    smartglass_font_16_cjk.c
-    ${LENS_UI_ASSET_SRCS}
-    ${LENS_SIMULATION_BACKGROUND_ASSET_SRCS}
+set(LENS_FONT_SRCS
+    generated/fonts/nav_font_72_digits.c
+    generated/fonts/smartglass_font_12_cjk.c
+    generated/fonts/smartglass_font_14_cjk.c
+    generated/fonts/smartglass_font_16_cjk.c
+    generated/fonts/smartglass_font_20_cjk.c
 )
-
-set(APPS_C_SRCS_FILTERED)
-foreach(app_src IN LISTS APPS_C_SRCS)
-    get_filename_component(app_src_name "${app_src}" NAME)
-    if(NOT app_src_name IN_LIST LENS_MANAGED_GENERATED_SRCS)
-        list(APPEND APPS_C_SRCS_FILTERED "${app_src}")
-    endif()
-endforeach()
-set(APPS_C_SRCS ${APPS_C_SRCS_FILTERED})
 
 set(LENS_MANAGED_ASSET_SRCS ${LENS_UI_ASSET_SRCS})
 if(SMARTGLASS_ENABLE_SIMULATION_BACKGROUNDS)
@@ -49,10 +55,9 @@ else()
 endif()
 
 add_library(${PROJECT_NAME} STATIC
-    ${APPS_C_SRCS}
-    ${APPS_CPP_SRCS}
+    ${LENS_UI_CODE_SRCS}
     ${LENS_MANAGED_ASSET_SRCS}
-    smartglass_font_16_cjk.c
+    ${LENS_FONT_SRCS}
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

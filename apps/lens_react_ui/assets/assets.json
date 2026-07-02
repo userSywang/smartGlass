@@ -1,58 +1,75 @@
 {
-  "schema": 1,
-  "generated_c_directory": "../",
-  "embedded_ui_assets": [
+  "schema": 2,
+  "generated_c_directory": "../generated",
+  "asset_groups": [
     {
+      "id": "home_icons",
+      "category": "embedded_ui",
       "source": "ui/home/*.png",
-      "output": "home_icons_asset.c",
-      "usage": "home module icons"
+      "output": "ui/home_icons_asset.c",
+      "symbol_suffix": "_icon"
     },
     {
+      "id": "camera_shutter",
+      "category": "embedded_ui",
       "source": "ui/camera/camera_shutter.png",
-      "output": "camera_shutter_asset.c",
-      "usage": "camera shutter button"
+      "output": "ui/camera_shutter_asset.c",
+      "symbol": "camera_shutter_button"
     },
     {
-      "source": "ui/meeting/microphone.svg",
-      "output": "meeting_microphone_asset.c",
-      "usage": "meeting transcript microphone"
+      "id": "meeting_microphone",
+      "category": "embedded_ui",
+      "source": "ui/meeting/microphone.png",
+      "output": "ui/meeting_microphone_asset.c",
+      "symbol": "meeting_microphone_icon"
     },
     {
-      "source": "ui/shared/session_clock.svg",
-      "output": "session_clock_asset.c",
-      "usage": "module elapsed time pill"
+      "id": "session_clock",
+      "category": "embedded_ui",
+      "source": "ui/shared/session_clock.png",
+      "output": "ui/session_clock_asset.c",
+      "symbol": "session_clock_icon"
     },
     {
+      "id": "navigation_hud",
+      "category": "embedded_ui",
       "source": "ui/navigation/png/*.png",
-      "output": "nav_assets.c",
-      "usage": "navigation hud symbols"
+      "output": "ui/nav_assets.c"
     },
     {
+      "id": "assistant_bot",
+      "category": "embedded_ui",
       "source": "ui/assistant/assistant_bot.png",
-      "output": "assistant_bot_asset.c",
-      "usage": "assistant panel icon"
-    }
-  ],
-  "simulation_background_assets": [
+      "output": "ui/assistant_bot_asset.c",
+      "symbol": "assistant_bot_icon"
+    },
     {
+      "id": "camera_background",
+      "category": "simulation_background",
       "source": "simulation/backgrounds/camera_lifestyle_background.png",
-      "output": "camera_lifestyle_background_asset.c",
-      "usage": "camera simulation background"
+      "output": "simulation/camera_lifestyle_background_asset.c",
+      "symbol": "camera_lifestyle_background"
     },
     {
+      "id": "meeting_background",
+      "category": "simulation_background",
       "source": "simulation/backgrounds/meeting_background.png",
-      "output": "meeting_background_asset.c",
-      "usage": "meeting record simulation background"
+      "output": "simulation/meeting_background_asset.c",
+      "symbol": "meeting_background"
     },
     {
+      "id": "navigation_background",
+      "category": "simulation_background",
       "source": "simulation/backgrounds/navigation_background.png",
-      "output": "navigation_background_asset.c",
-      "usage": "navigation simulation background"
+      "output": "simulation/navigation_background_asset.c",
+      "symbol": "navigation_background"
     },
     {
+      "id": "realtime_translate_background",
+      "category": "simulation_background",
       "source": "simulation/backgrounds/realtime_translate_background.png",
-      "output": "realtime_translate_background_asset.c",
-      "usage": "real-time translate simulation background"
+      "output": "simulation/realtime_translate_background_asset.c",
+      "symbol": "realtime_translate_background"
     }
   ]
 }

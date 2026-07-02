@@ -29,3 +29,10 @@ add_smartglass_logic_test(
     lens_data_provider_test.cpp
     ${LENS_UI_SOURCE_DIR}/SimulationLensDataProvider.cpp
 )
+
+if(Python3_Interpreter_FOUND)
+    add_test(
+        NAME lens_assets_check
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/generate_lens_assets.py --check
+    )
+endif()
